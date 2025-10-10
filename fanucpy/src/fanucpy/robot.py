@@ -13,7 +13,7 @@ class Robot:
         self,
         robot_model: str,
         host: str,
-        port: int = 18375,
+        port: int = 18735,
         ee_DO_type: str | None = None,
         ee_DO_num: int | None = None,
         socket_timeout: int = 60,

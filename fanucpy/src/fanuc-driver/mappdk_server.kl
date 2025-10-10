@@ -7,7 +7,7 @@
 --                      Development Kit (MAPPDK) 
 --                      Driver for FANUC robots.
 ----------------------------------------------------
-PROGRAM MAPPDK_SERVER
+PROGRAM MAPPDK_SVR
 %STACKSIZE = 4000
 %NOLOCKGROUP
 %NOPAUSE = ERROR + COMMAND + TPENABLE
@@ -25,7 +25,7 @@ VAR
     tool_str:           STRING[1]
     
 CONST
-    SERVER_TAG_NUM = 8
+    SERVER_TAG = 8
     PORT_NUMBER = 18735
     UFRAMENUM = 8
     TOOLNUM = 8
@@ -54,7 +54,7 @@ BEGIN -- Begin main program
     
     WHILE TRUE DO
         -- open
-        OPEN_COMM(comm_file, SERVER_TAG_NUM, PORT_NUMBER)
+        OPEN_COMM(comm_file, SERVER_TAG, PORT_NUMBER)
         
         keep_conn = TRUE
         WHILE keep_conn DO
@@ -74,8 +74,8 @@ BEGIN -- Begin main program
         ENDWHILE
         
         -- disconnect
-        CLOSE_COMM(comm_file, SERVER_TAG_NUM)
+        CLOSE_COMM(comm_file, SERVER_TAG)
     ENDWHILE -- main listening loop
 
     WRITE('MAPPDK SERVER finished.', CR)
-END MAPPDK_SERVER
+END MAPPDK_SVR
