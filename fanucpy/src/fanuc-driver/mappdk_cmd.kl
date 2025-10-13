@@ -600,6 +600,216 @@ BEGIN
 END SET_SYS_VAR
 
 
+ROUTINE SET_TOOL(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Set tool number (UTOOL_NUM)
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    sub_cmd:         STRING[30]
+    args:            STRING[200]
+    tool_num:        INTEGER
+    status:          INTEGER
+    entry:           INTEGER
+BEGIN
+    -- Parse command
+    -- Format: set_tool <tool_num>
+    SPLIT_CMD(cmd, sub_cmd, args)
+    
+    -- Convert to integer
+    CNV_STR_INT(args, tool_num)
+    
+    -- Update global state variable
+    g_tool_num = tool_num
+    
+    -- Set R[84] for TP program
+    SET_INT_REG(84, tool_num, status)
+    IF status <> 0 THEN
+        RETURN('1:cannot-set-r84')
+    ENDIF
+    
+    -- Run TP program to set UTOOL_NUM
+    CALL_PROG('SET_UTOOL_TP', status)
+    IF status <> 0 THEN
+        RETURN('1:cannot-run-set-utool-tp')
+    ENDIF
+    
+    -- Apply kinematic context
+    APPLY_KINEMATIC_CONTEXT
+    
+    -- Log success
+    LOG_INFO('Tool number set to ' + args)
+    
+    RETURN('0:tool-set-success')
+END SET_TOOL
+
+
+ROUTINE SET_USER(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Set user frame number (UFRAME_NUM)
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    sub_cmd:         STRING[30]
+    args:            STRING[200]
+    user_num:        INTEGER
+    status:          INTEGER
+    entry:           INTEGER
+BEGIN
+    -- Parse command
+    -- Format: set_user <user_num>
+    SPLIT_CMD(cmd, sub_cmd, args)
+    
+    -- Convert to integer
+    CNV_STR_INT(args, user_num)
+    
+    -- Update global state variable
+    g_uframe_num = user_num
+    
+    -- Set R[85] for TP program
+    SET_INT_REG(85, user_num, status)
+    IF status <> 0 THEN
+        RETURN('1:cannot-set-r85')
+    ENDIF
+    
+    -- Run TP program to set UFRAME_NUM
+    CALL_PROG('SET_UFRAME_TP', status)
+    IF status <> 0 THEN
+        RETURN('1:cannot-run-set-uframe-tp')
+    ENDIF
+    
+    -- Apply kinematic context
+    APPLY_KINEMATIC_CONTEXT
+    
+    -- Log success
+    LOG_INFO('User frame number set to ' + args)
+    
+    RETURN('0:user-set-success')
+END SET_USER
+
+
+ROUTINE SET_COORD(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Set coordinate system (WORLD/USER/TOOL)
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    sub_cmd:         STRING[30]
+    args:            STRING[200]
+    entry:           INTEGER
+    status:          INTEGER
+BEGIN
+    -- Parse command
+    -- Format: set_coord <WORLD|USER|TOOL>
+    SPLIT_CMD(cmd, sub_cmd, args)
+    
+    -- Convert string to coord type
+    IF args = 'WORLD' THEN
+        g_coord_type = 0
+    ELSIF args = 'USER' THEN
+        g_coord_type = 1
+    ELSIF args = 'TOOL' THEN
+        g_coord_type = 2
+    ELSE
+        RETURN('1:invalid-coord-type')
+    ENDIF
+    
+    -- Apply kinematic context
+    APPLY_KINEMATIC_CONTEXT
+    
+    -- Log success
+    LOG_INFO('Coordinate system set to ' + args)
+    
+    RETURN('0:coord-set-success')
+END SET_COORD
+
+
+ROUTINE GET_TOOL(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Get current tool number (UTOOL_NUM)
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    resp:            STRING[254]
+    val_str:         STRING[10]
+BEGIN
+    -- Convert tool number to string
+    CNV_INT_STR(g_tool_num, 0, 0, val_str)
+    
+    -- Format response
+    resp = '0:' + val_str
+    
+    RETURN(resp)
+END GET_TOOL
+
+
+ROUTINE GET_USER(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Get current user frame number (UFRAME_NUM)
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    resp:            STRING[254]
+    val_str:         STRING[10]
+BEGIN
+    -- Convert user frame number to string
+    CNV_INT_STR(g_uframe_num, 0, 0, val_str)
+    
+    -- Format response
+    resp = '0:' + val_str
+    
+    RETURN(resp)
+END GET_USER
+
+
+ROUTINE GET_COORD(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Get current coordinate system
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    resp:            STRING[254]
+BEGIN
+    -- Convert coord type to string
+    CASE g_coord_type OF
+        CASE(0):
+            resp = '0:WORLD'
+        CASE(1):
+            resp = '0:USER'
+        CASE(2):
+            resp = '0:TOOL'
+        ELSE:
+            resp = '1:unknown-coord-type'
+    ENDCASE
+    
+    RETURN(resp)
+END GET_COORD
+
+
 ROUTINE HANDLE_CMD(cmd: STRING;
                    resp: STRING) : BOOLEAN
 ----------------------------------------------------
@@ -682,6 +892,42 @@ BEGIN
         resp = SET_SYS_VAR(cmd)
         RETURN(TRUE)
 	ENDIF
+
+    -- set_tool: set tool number
+    IF SUB_STR(cmd, 1, 8) = 'set_tool' THEN
+        resp = SET_TOOL(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- set_user: set user frame number
+    IF SUB_STR(cmd, 1, 8) = 'set_user' THEN
+        resp = SET_USER(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- set_coord: set coordinate system (WORLD/USER/TOOL)
+    IF SUB_STR(cmd, 1, 9) = 'set_coord' THEN
+        resp = SET_COORD(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- get_tool: get current tool number
+    IF SUB_STR(cmd, 1, 8) = 'get_tool' THEN
+        resp = GET_TOOL(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- get_user: get current user frame number
+    IF SUB_STR(cmd, 1, 8) = 'get_user' THEN
+        resp = GET_USER(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- get_coord: get current coordinate system
+    IF SUB_STR(cmd, 1, 9) = 'get_coord' THEN
+        resp = GET_COORD(cmd)
+        RETURN(TRUE)
+    ENDIF
 
     -- if none of the above cmds matched
     WRITE('WRONG COMMAND: ', cmd, CR)

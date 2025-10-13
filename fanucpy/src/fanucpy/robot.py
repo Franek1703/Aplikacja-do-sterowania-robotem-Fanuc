@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import socket
-from typing import Literal
+from typing import Literal, Union
 
 
 class FanucError(Exception):
@@ -312,6 +312,107 @@ class Robot:
         """
         val_ = "T" if val else "F"
         cmd = f"setsysvar:{sys_var}:{val_}"
+        return self.send_cmd(cmd, continue_on_error=continue_on_error)
+        
+    def set_tool(
+        self,
+        tool_num: int,
+        continue_on_error: bool = False,
+    ) -> tuple[Literal[0, 1], str]:
+        """Set tool number (UTOOL_NUM).
+        
+        Args:
+            tool_num (int): Tool number to set
+            continue_on_error (bool, optional): Whether to continue on error. Defaults to False.
+            
+        Returns:
+            tuple(int, str): Response code and response message.
+        """
+        cmd = f"set_tool {tool_num}"
+        return self.send_cmd(cmd, continue_on_error=continue_on_error)
+    
+    def set_user(
+        self,
+        user_num: int,
+        continue_on_error: bool = False,
+    ) -> tuple[Literal[0, 1], str]:
+        """Set user frame number (UFRAME_NUM).
+        
+        Args:
+            user_num (int): User frame number to set
+            continue_on_error (bool, optional): Whether to continue on error. Defaults to False.
+            
+        Returns:
+            tuple(int, str): Response code and response message.
+        """
+        cmd = f"set_user {user_num}"
+        return self.send_cmd(cmd, continue_on_error=continue_on_error)
+    
+    def set_coord(
+        self,
+        coord_type: Literal["WORLD", "USER", "TOOL"],
+        continue_on_error: bool = False,
+    ) -> tuple[Literal[0, 1], str]:
+        """Set coordinate system.
+        
+        Args:
+            coord_type (str): Coordinate system to use ("WORLD", "USER", or "TOOL")
+            continue_on_error (bool, optional): Whether to continue on error. Defaults to False.
+            
+        Returns:
+            tuple(int, str): Response code and response message.
+        """
+        if coord_type not in ("WORLD", "USER", "TOOL"):
+            raise ValueError("Coordinate system must be WORLD, USER, or TOOL")
+        cmd = f"set_coord {coord_type}"
+        return self.send_cmd(cmd, continue_on_error=continue_on_error)
+    
+    def get_tool(
+        self,
+        continue_on_error: bool = False,
+    ) -> tuple[Literal[0, 1], str]:
+        """Get current tool number (UTOOL_NUM).
+        
+        Args:
+            continue_on_error (bool, optional): Whether to continue on error. Defaults to False.
+            
+        Returns:
+            tuple(int, str): Response code and response message.
+            Message contains the current tool number.
+        """
+        cmd = "get_tool"
+        return self.send_cmd(cmd, continue_on_error=continue_on_error)
+    
+    def get_user(
+        self,
+        continue_on_error: bool = False,
+    ) -> tuple[Literal[0, 1], str]:
+        """Get current user frame number (UFRAME_NUM).
+        
+        Args:
+            continue_on_error (bool, optional): Whether to continue on error. Defaults to False.
+            
+        Returns:
+            tuple(int, str): Response code and response message.
+            Message contains the current user frame number.
+        """
+        cmd = "get_user"
+        return self.send_cmd(cmd, continue_on_error=continue_on_error)
+    
+    def get_coord(
+        self,
+        continue_on_error: bool = False,
+    ) -> tuple[Literal[0, 1], str]:
+        """Get current coordinate system.
+        
+        Args:
+            continue_on_error (bool, optional): Whether to continue on error. Defaults to False.
+            
+        Returns:
+            tuple(int, str): Response code and response message.
+            Message contains the current coordinate system (WORLD, USER, or TOOL).
+        """
+        cmd = "get_coord"
         return self.send_cmd(cmd, continue_on_error=continue_on_error)
 
 

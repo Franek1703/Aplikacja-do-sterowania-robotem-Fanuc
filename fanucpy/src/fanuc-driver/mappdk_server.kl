@@ -24,6 +24,11 @@ VAR
     uframe_str:         STRING[1]
     tool_str:           STRING[1]
     
+-- Global state variables for tool/user/coord selection
+    g_tool_num:         INTEGER
+    g_uframe_num:       INTEGER
+    g_coord_type:       INTEGER  -- 0=WORLD, 1=USER, 2=TOOL
+    
 CONST
     SERVER_TAG = 8
     PORT_NUMBER = 18735
@@ -35,16 +40,22 @@ CONST
 %INCLUDE mappdk_utils
 %INCLUDE mappdk_comm
 %INCLUDE mappdk_cmd
+%INCLUDE mappdk_context
 
 BEGIN -- Begin main program
     -- clear screen
     TP_CLS
     WRITE('MAPPDK SERVER started.', CR)
 
+    -- Initialize global state variables
+    g_tool_num = TOOLNUM
+    g_uframe_num = UFRAMENUM
+    g_coord_type = 0  -- Default to WORLD coordinates
+    
     -- set userframe and toolframe
     -- !!!TO BE DOCUMENTED!!!
-    SET_VAR(entry, '*SYSTEM*', '$MNUFRAMENUM[1]', UFRAMENUM, status)
-    SET_VAR(entry, '*SYSTEM*', '$MNUTOOLNUM[1]', TOOLNUM, status)
+    SET_VAR(entry, '*SYSTEM*', '$MNUFRAMENUM[1]', g_uframe_num, status)
+    SET_VAR(entry, '*SYSTEM*', '$MNUTOOLNUM[1]', g_tool_num, status)
 
     -- update $UFRAME and $UTOOL
     CNV_INT_STR(UFRAMENUM, 1, 0, uframe_str)
