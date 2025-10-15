@@ -20,19 +20,19 @@ Welcome to the FanucPy documentation. This guide provides comprehensive informat
 
 ## Component Documentation
 
-- [**KAREL/TP Driver**](../src/fanuc-driver/README.md): Documentation for the server-side KAREL and TP programs that run on the robot controller.
+- [**KAREL/TP Driver**](../fanuc-driver/README.md): Documentation for the server-side KAREL and TP programs that run on the robot controller.
 
-- [**Python Library**](../src/fanucpy/README.md): API reference for the Python client library.
+- [**Python Library**](../rpi/fanuc_package/src/robot/README.md): API reference for the Python client library.
 
 ## Example Applications
 
-- [**Pick and Place App**](../examples/PickAndPlaceApp.py): Example of a pick-and-place application using FanucPy.
+- [**Pick and Place App**](../rpi/fanuc_package/examples/PickAndPlaceApp.py): Example of a pick-and-place application using FanucPy.
 
-- [**Aruco Tracking App**](../examples/ArucoTrackingApp.py): Example of vision-based tracking using ArUco markers.
+- [**Aruco Tracking App**](../rpi/fanuc_package/examples/ArucoTrackingApp.py): Example of vision-based tracking using ArUco markers.
 
-- [**ChatGPT Integration**](../examples/fanucpy-gpt/README.MD): Example of using FanucPy with ChatGPT for natural language robot control.
+- [**ChatGPT Integration**](../rpi/fanuc_package/examples/fanucpy-gpt/README.MD): Example of using FanucPy with ChatGPT for natural language robot control.
 
-- [**Voice Commands**](../examples/voice-commands/README.md): Example of controlling the robot using voice commands.
+- [**Voice Commands**](../rpi/fanuc_package/examples/voice-commands/README.md): Example of controlling the robot using voice commands.
 
 ## Getting Started
 

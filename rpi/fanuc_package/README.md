@@ -37,32 +37,31 @@ The communication protocol between the Python package and the FANUC robot contro
 ## Repository Structure
 
 ```
-fanucpy/
-├── src/                       # Source code
-│   ├── fanuc-driver/          # KAREL/TP programs for FANUC controller
-│   │   ├── fanuc_remote_server.kl   # Main server program
-│   │   ├── fanuc_remote_cmd.kl      # Command handlers
-│   │   ├── fanuc_remote_jog.kl      # Jogging functionality
-│   │   ├── ... (other KAREL/TP files)
-│   │   └── README.md          # Documentation for KAREL/TP programs
-│   └── fanucpy/               # Python library
-│       ├── robot.py           # Core Robot class
-│       ├── robotapp.py        # Application framework
-│       ├── ... (other Python files)
-│       └── README.md          # Documentation for Python library
-├── examples/                  # Example applications
-│   ├── PickAndPlaceApp.py     # Pick and place example
-│   ├── ArucoTrackingApp.py    # Vision-based tracking example
-│   ├── fanucpy-gpt/           # GPT-assisted examples
-│   └── voice-commands/        # Voice control examples
-├── docs/                      # Documentation
-│   ├── architecture.md        # System architecture documentation
-│   ├── frames_and_coords.md   # Tool, user frame, coordinate system documentation
-│   ├── jogging.md            # Jogging functionality documentation
-│   └── cli_tools.md          # Command-line tools documentation
-├── cli_tool_user_coord.py     # CLI for tool/user frames
-├── cli_jog.py                 # CLI for jogging operations
-└── ... (other project files)
+.
+├── README.md                      # This file
+├── docs/                          # Documentation
+│   ├── index.md                   # Documentation index
+│   ├── cli_tools.md               # Command-line tools documentation
+│   ├── frames_and_coords.md       # Tool/user frame documentation
+│   └── jogging.md                 # Jogging functionality documentation
+├── fanuc-driver/                  # KAREL/TP driver for FANUC controller
+│   ├── fanuc_remote_server.kl     # Main server program
+│   ├── fanuc_remote_cmd.kl        # Command handlers
+│   ├── fanuc_remote_jog.kl        # Jogging functionality
+│   └── ... (other KAREL/TP files)
+├── rpi/                           # Raspberry Pi components
+│   └── fanuc_package/             # Python package
+│       ├── src/                   # Source code
+│       │   └── robot/             # Robot control library
+│       │       ├── robot.py       # Core Robot class
+│       │       └── robotapp.py    # Application framework
+│       ├── examples/              # Example applications
+│       │   ├── PickAndPlaceApp.py # Pick and place example
+│       │   ├── ArucoTrackingApp.py# Vision-based tracking example
+│       │   ├── fanucpy-gpt/       # GPT-assisted examples
+│       │   └── voice-commands/    # Voice control examples
+│       ├── cli_tool_user_coord.py # CLI for tool/user frames
+│       └── cli_jog.py             # CLI for jogging operations
 ```
 
 ## Python Package Installation
@@ -233,19 +232,19 @@ python cli_jog.py --host 192.168.1.10 stop-all
 
 ## Documentation
 
-[Complete Documentation Index](docs/index.md)
+[Complete Documentation Index](../../docs/index.md)
 
 ### Technical Documentation
 
-- [System Architecture Documentation](docs/architecture.md): Overall system design and communication flow
-- [Tool, User Frame, and Coordinate System Documentation](docs/frames_and_coords.md): Details on coordinate frame management
-- [Jogging Functionality Documentation](docs/jogging.md): iPendant-like continuous motion control
-- [Command-Line Tools Documentation](docs/cli_tools.md): Using the included CLI utilities
+- [System Architecture Documentation](../../docs/architecture.md): Overall system design and communication flow
+- [Tool, User Frame, and Coordinate System Documentation](../../docs/frames_and_coords.md): Details on coordinate frame management
+- [Jogging Functionality Documentation](../../docs/jogging.md): iPendant-like continuous motion control
+- [Command-Line Tools Documentation](../../docs/cli_tools.md): Using the included CLI utilities
 
 ### Component Documentation
 
-- [KAREL/TP Driver Documentation](src/fanuc-driver/README.md): Robot controller side implementation
-- [Python Library Documentation](src/fanucpy/README.md): Python API reference
+- [KAREL/TP Driver Documentation](../../fanuc-driver/README.md): Robot controller side implementation
+- [Python Library Documentation](src/robot/README.md): Python API reference
 
 ## RobotApp
 The `RobotApp` class facilitates modularity and plug-and-produce functionality. Check the following example apps:

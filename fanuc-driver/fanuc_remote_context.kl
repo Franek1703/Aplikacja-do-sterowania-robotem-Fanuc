@@ -1,7 +1,7 @@
 -- Description:         Handles kinematic context
 --                      (tool, user frame, coord system)
 
--- Global state variables defined in mappdk_server.kl
+-- Global state variables defined in fanuc_remote_server.kl
 -- g_tool_num:   INTEGER
 -- g_uframe_num: INTEGER
 -- g_coord_type: INTEGER  -- 0=WORLD, 1=USER, 2=TOOL

@@ -1,13 +1,13 @@
 -- Description:         Manufacturing Apps
---                      Development Kit (MAPPDK) 
+--                      Development Kit (fanuc_remote) 
 --                      Driver for FANUC robots.
 
-PROGRAM MAPPDK_LOG
+PROGRAM FANUC_LOG
 %STACKSIZE = 4000
 %NOLOCKGROUP
 %NOPAUSE = ERROR + COMMAND + TPENABLE
 %ALPHABETIZE
-%COMMENT = 'MAPPDK LOGGER V0.0.1'
+%COMMENT = 'FANUC_REMOTE LOGGER V0.0.1'
 
 VAR
     comm_file:          FILE
@@ -23,13 +23,13 @@ CONST
 
 
 -- Include routines
-%INCLUDE mappdk_utils
-%INCLUDE mappdk_comm
-%INCLUDE mappdk_cmd
+%INCLUDE fanuc_remote_utils
+%INCLUDE fanuc_remote_comm
+%INCLUDE fanuc_remote_cmd
 
 BEGIN -- Begin main program
     -- clear screen
-    WRITE('MAPPDK LOGGER started.', CR)
+    WRITE('fanuc_remote LOGGER started.', CR)
     
     WHILE TRUE DO
         -- open
@@ -56,5 +56,5 @@ BEGIN -- Begin main program
         CLOSE_COMM(comm_file, SERVER_TAG)
     ENDWHILE -- main listening loop
 
-    WRITE('MAPPDK LOGGER finished.', CR)
-END MAPPDK_LOG
+    WRITE('fanuc_remote LOGGER finished.', CR)
+END FANUC_LOG

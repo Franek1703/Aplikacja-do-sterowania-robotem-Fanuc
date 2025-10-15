@@ -425,7 +425,7 @@ VAR
     entry: INTEGER
     grp_num: INTEGER
 BEGIN
-    PR_NUM = 81 -- Use the same register as other MAPPDK operations
+    PR_NUM = 81 -- Use the same register as other fanuc_remote operations
     grp_num = 1
     
     -- Set the position register
@@ -439,6 +439,6 @@ BEGIN
     SET_INT_REG(82, 100, status)       -- acceleration
     SET_INT_REG(83, 100, status)       -- CNT value for blending
     
-    -- Execute motion (using the same TP program as other MAPPDK operations)
-    CALL_PROG('MAPPDK_MOVEL', status)
+    -- Execute motion (using the same TP program as other fanuc_remote operations)
+    CALL_PROG('FANUC_REMOTE_MOVEL', status)
 END MOVE_TO_POSITION

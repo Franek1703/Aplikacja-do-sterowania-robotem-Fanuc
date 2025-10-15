@@ -1,5 +1,5 @@
 import numpy as np
-from fanucpy import Robot
+from robot import Robot
 
 robot = Robot(
     robot_model="ROBOT",

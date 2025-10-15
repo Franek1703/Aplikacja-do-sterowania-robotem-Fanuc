@@ -105,7 +105,7 @@ class Robot:
         Args:
             prog_name ([str]): External program name.
         """
-        cmd = f"mappdkcall:{prog_name}"
+        cmd = f"fanuccall:{prog_name}"
         return self.send_cmd(cmd)
 
     def get_ins_power(self) -> float:

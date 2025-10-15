@@ -1,12 +1,12 @@
 -- Description:         Manufacturing Apps
---                      Development Kit (MAPPDK) 
+--                      Development Kit (FANUC_REMOTE) 
 --                      Driver for FANUC robots.
-PROGRAM MAPPDK_SVR
+PROGRAM FANUC_SVR
 %STACKSIZE = 4000
 %NOLOCKGROUP
 %NOPAUSE = ERROR + COMMAND + TPENABLE
 %ALPHABETIZE
-%COMMENT = 'MAPPDK SERVER V0.0.1'
+%COMMENT = 'FANUC_REMOTE SERVER V0.0.1'
 
 VAR
     comm_file:          FILE
@@ -31,11 +31,11 @@ CONST
 
 
 -- Include routines
-%INCLUDE mappdk_utils
-%INCLUDE mappdk_comm
-%INCLUDE mappdk_cmd
-%INCLUDE mappdk_context
-%INCLUDE mappdk_jog
+%INCLUDE fanuc_remote_utils
+%INCLUDE fanuc_remote_comm
+%INCLUDE fanuc_remote_cmd
+%INCLUDE fanuc_remote_context
+%INCLUDE fanuc_remote_jog
 
 -- Jog tick task declaration
 ROUTINE JOG_TICK_TASK
@@ -70,7 +70,7 @@ END JOG_TICK_TASK
 BEGIN -- Begin main program
     -- clear screen
     TP_CLS
-    WRITE('MAPPDK SERVER started.', CR)
+    WRITE('FANUC_REMOTE SERVER started.', CR)
 
     -- Initialize global state variables
     g_tool_num = TOOLNUM
@@ -122,5 +122,5 @@ BEGIN -- Begin main program
         CLOSE_COMM(comm_file, SERVER_TAG)
     ENDWHILE -- main listening loop
 
-    WRITE('MAPPDK SERVER finished.', CR)
-END MAPPDK_SVR
+    WRITE('FANUC_REMOTE SERVER finished.', CR)
+END FANUC_SVR

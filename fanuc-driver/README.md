@@ -2,7 +2,7 @@
 
 ## Overview
 
-This folder contains the KAREL and LS program files that implement the Manufacturing Apps Development Kit (fanuc_remote) driver for FANUC robots. The driver enables external applications to communicate with and control FANUC robots through a TCP/IP connection, providing a high-level interface for robot control operations.
+This folder contains the KAREL and LS program files that implement the fanuc_remote driver for FANUC robots. The driver enables external applications to communicate with and control FANUC robots through a TCP/IP connection, providing a high-level interface for robot control operations.
 
 ## Communication Protocol
 
@@ -48,10 +48,8 @@ SERVER: 0:success
 
 | File | Description |
 |------|-------------|
-| `fanuc_remote_SVR.PC` | Compiled version of the server program |
-| `fanuc_remote_LOG.PC` | Compiled version of the logger program |
-| `fanuc_remote_server.pc` | Source code backup of server program |
-| `fanuc_remote_logger.pc` | Source code backup of logger program |
+| `FANUC_SVR.PC` | Compiled version of the server program |
+| `FANUC_LOG.PC` | Compiled version of the logger program |
 
 ## Detailed Component Description
 
@@ -65,7 +63,7 @@ The main server program that:
 - Manages the jog tick task for continuous jogging operations
 
 ```karel
-PROGRAM fanuc_remote_SVR
+PROGRAM FANUC_SVR
 VAR
     g_tool_num:         INTEGER
     g_uframe_num:       INTEGER
