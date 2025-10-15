@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import socket
-from typing import Literal, Union
+from typing import Literal, Union, List, Optional
+
+from fanuc_package.src.robot.ftp import RobotFTP, RobotFTPError
 
 
 class FanucError(Exception):
@@ -17,6 +19,8 @@ class Robot:
         ee_DO_type: str | None = None,
         ee_DO_num: int | None = None,
         socket_timeout: int = 60,
+        ftp_user: str = "anonymous",
+        ftp_password: str = "",
     ):
         """Class to connect to the robot, send commands, and receive
         responses.
@@ -32,6 +36,8 @@ class Robot:
                 number. Defaults to None.
             socket_timeout(int): Socket timeout in seconds. Defaults to
                 5 seconds.
+            ftp_user (str): FTP username. Defaults to "anonymous".
+            ftp_password (str): FTP password. Defaults to "".
         """
         self.robot_model = robot_model
         self.host = host
@@ -43,6 +49,9 @@ class Robot:
         self.comm_sock: socket.socket
         self.SUCCESS_CODE = 0
         self.ERROR_CODE = 1
+        
+        # Initialize FTP client
+        self.ftp = RobotFTP(host=host, user=ftp_user, password=ftp_password)
 
     def handle_response(
         self, resp: str, continue_on_error: bool = False
@@ -76,7 +85,13 @@ class Robot:
         return self.handle_response(resp)
 
     def disconnect(self) -> None:
+        """Disconnect from the robot communication socket and FTP."""
         self.comm_sock.close()
+        # Also disconnect from FTP if connected
+        try:
+            self.ftp.disconnect()
+        except Exception:
+            pass
 
     def send_cmd(
         self, cmd: str, continue_on_error: bool = False
@@ -485,6 +500,55 @@ class Robot:
         """
         cmd = "jog_stop_all"
         return self.send_cmd(cmd, continue_on_error=continue_on_error)
+    
+    def list_programs(self, device: str = "MD", pattern: str = "*", types: str = "ALL") -> List[str]:
+        """List program files on the robot.
+        
+        This method connects to the robot's FTP server and lists program files
+        matching the specified criteria.
+        
+        Args:
+            device (str): Device to list files from (e.g., "MD", "UD1"), defaults to "MD".
+            pattern (str): File pattern to match, defaults to "*".
+            types (str): Type of programs to list ("TP", "KAREL", or "ALL"), defaults to "ALL".
+            
+        Returns:
+            List[str]: A list of program filenames.
+            
+        Raises:
+            FanucError: If an error occurs during FTP operation.
+        """
+        try:
+            self.ftp.connect()
+            return self.ftp.list_files(device, pattern, types)
+        except RobotFTPError as e:
+            raise FanucError(f"Failed to list programs: {e}")
+        finally:
+            self.ftp.disconnect()
+    
+    def read_program(self, device: str, filename: str) -> str:
+        """Read a program file from the robot.
+        
+        This method connects to the robot's FTP server and reads the content
+        of the specified program file.
+        
+        Args:
+            device (str): Device to read from (e.g., "MD", "UD1").
+            filename (str): Name of the program file to read.
+            
+        Returns:
+            str: The program file contents as a string.
+            
+        Raises:
+            FanucError: If an error occurs during FTP operation.
+        """
+        try:
+            self.ftp.connect()
+            return self.ftp.read_file(device, filename)
+        except RobotFTPError as e:
+            raise FanucError(f"Failed to read program: {e}")
+        finally:
+            self.ftp.disconnect()
 
 
 if __name__ == "__main__":

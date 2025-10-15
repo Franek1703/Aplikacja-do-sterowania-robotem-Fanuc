@@ -12,6 +12,7 @@ The `fanucpy` package is a Python interface for communicating with and controlli
 | `robotapp.py` | Application framework for building robot applications |
 | `calibration.py` | Utilities for robot calibration |
 | `transformations.py` | 3D transformation utilities |
+| `ftp.py` | FTP client for accessing robot program files |
 | `__init__.py` | Package initialization and exports |
 
 ## Communication Architecture
@@ -41,12 +42,14 @@ The `Robot` class is the main interface for communication with the physical robo
 - Tool/User frame selection
 - Coordinate system management
 - Jogging operations
+- FTP access to robot program files
 
 #### Core Methods
 
 ```python
 class Robot:
-    def __init__(self, robot_model, host, port=18735, ee_DO_type=None, ee_DO_num=None, socket_timeout=60)
+    def __init__(self, robot_model, host, port=18735, ee_DO_type=None, ee_DO_num=None, 
+                 socket_timeout=60, ftp_user="anonymous", ftp_password="")
     def connect() -> tuple[Literal[0, 1], str]
     def disconnect() -> None
     def send_cmd(cmd: str, continue_on_error=False) -> tuple[Literal[0, 1], str]
@@ -318,6 +321,55 @@ code = int(code_)
 
 1. **Network Reliability**: Ensure stable network connection between the client and robot controller
 2. **Robot Limits**: Movement commands should respect joint and Cartesian limits
+
+## FTP Functionality
+
+The FTP module provides access to the robot's program files:
+
+### ftp.py
+
+The `RobotFTP` class provides functionality to connect to the robot's FTP server, list files, and read file contents. It handles:
+
+- FTP connection establishment/teardown
+- File listing with filtering by device, pattern, and file type
+- File content reading
+- Error handling
+
+#### Core Methods
+
+```python
+class RobotFTP:
+    def __init__(self, host: str, user: str = "anonymous", password: str = "")
+    def connect() -> bool
+    def disconnect() -> None
+    def list_files(self, device: str = "MD:", pattern: str = "*", types: str = "ALL") -> List[str]
+    def read_file(self, device: str, filename: str) -> str
+```
+
+### FTP Integration in Robot Class
+
+The `Robot` class integrates FTP functionality with these methods:
+
+```python
+def list_programs(self, device: str = "MD", pattern: str = "*", types: str = "ALL") -> List[str]
+def read_program(self, device: str, filename: str) -> str
+```
+
+### Example Usage
+
+```python
+# List all TP programs on the robot's memory
+tp_programs = robot.list_programs(device="MD", types="TP")
+
+# Read the content of a specific program
+program_content = robot.read_program("MD", "PROGRAM.TP")
+```
+
+### Supported Program Types
+
+- **TP Programs**: `.TP` and `.LS` extensions
+- **KAREL Programs**: `.KL` extension
+- **Program Control Files**: `.PC` extension
 3. **Safety**: Implement proper safety checks in applications
 4. **Performance**: Large movements may take time; adjust timeouts accordingly
 5. **Error Recovery**: Implement proper error recovery mechanisms in production applications

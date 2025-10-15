@@ -22,6 +22,16 @@ class InteractiveRobotControl:
         self.connected = False
         self.status_thread = None
         
+        ## Connect to robot on start
+        try:
+            print("Connecting to robot...")
+            self.robot.connect()
+            self.connected = True
+            print("Connected to robot successfully.")
+        except Exception as e:
+            print(f"Failed to connect: {e}")
+            self.exit_program()
+        
         # Mapping of keys to functions
         self.key_mapping = {
             # Jogging controls - X, Y, Z, W, P, R axes
