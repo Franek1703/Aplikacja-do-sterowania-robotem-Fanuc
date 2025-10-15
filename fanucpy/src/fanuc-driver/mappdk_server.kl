@@ -1,12 +1,6 @@
-----------------------------------------------------
--- Author:              Agajan Torayev
--- Email:               torayeff@gmail.com
--- Homepage:            https://torayeff.com
--- Copyright:           Agajan Torayev
 -- Description:         Manufacturing Apps
 --                      Development Kit (MAPPDK) 
 --                      Driver for FANUC robots.
-----------------------------------------------------
 PROGRAM MAPPDK_SVR
 %STACKSIZE = 4000
 %NOLOCKGROUP
@@ -41,6 +35,37 @@ CONST
 %INCLUDE mappdk_comm
 %INCLUDE mappdk_cmd
 %INCLUDE mappdk_context
+%INCLUDE mappdk_jog
+
+-- Jog tick task declaration
+ROUTINE JOG_TICK_TASK
+VAR
+    start_time: INTEGER
+    end_time: INTEGER
+    delay_time: INTEGER
+    interval: INTEGER
+BEGIN
+    -- Default interval in milliseconds
+    interval = jog_interval
+    
+    WHILE TRUE DO
+        -- Record start time
+        start_time = GETTIME(0)
+        
+        -- Execute one tick of jogging
+        JOG_TICK
+        
+        -- Calculate elapsed time
+        end_time = GETTIME(0)
+        delay_time = interval - (end_time - start_time)
+        
+        -- Sleep until next interval (ensuring a minimum of 1ms delay)
+        IF delay_time < 1 THEN
+            delay_time = 1
+        ENDIF
+        DELAY delay_time
+    ENDWHILE
+END JOG_TICK_TASK
 
 BEGIN -- Begin main program
     -- clear screen
@@ -52,10 +77,19 @@ BEGIN -- Begin main program
     g_uframe_num = UFRAMENUM
     g_coord_type = 0  -- Default to WORLD coordinates
     
+    -- Initialize jog module
+    JOG_INIT
+    
     -- set userframe and toolframe
     -- !!!TO BE DOCUMENTED!!!
     SET_VAR(entry, '*SYSTEM*', '$MNUFRAMENUM[1]', g_uframe_num, status)
     SET_VAR(entry, '*SYSTEM*', '$MNUTOOLNUM[1]', g_tool_num, status)
+    
+    -- Start jog tick task
+    CONNECT TIMER[1] TO JOG_TICK_TASK
+    SET_CYCLES(TIMER[1], 0) -- Run continuously
+    SET_TIMER_TYPE(TIMER[1], 2) -- Semi-adaptive task
+    RUN_TIMER(TIMER[1], jog_interval) -- Start with jog interval
 
     -- update $UFRAME and $UTOOL
     CNV_INT_STR(UFRAMENUM, 1, 0, uframe_str)

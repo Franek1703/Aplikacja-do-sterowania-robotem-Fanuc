@@ -1,11 +1,5 @@
-----------------------------------------------------
--- Author:              Agajan Torayev
--- Email:               torayeff@gmail.com
--- Homepage:            https://torayeff.com
--- Copyright:           Agajan Torayev
 -- Description:         Handles commands sent from
 --                      external program.
-----------------------------------------------------
 
 ROUTINE GET_CURPOS(cmd: STRING): STRING
 ----------------------------------------------------
@@ -810,6 +804,175 @@ BEGIN
 END GET_COORD
 
 
+ROUTINE HANDLE_JOG_START(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Handle JOG_START command
+-- Format: JOG_START <AXIS> <DIR> [SPEED] [STEP]
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]: Command string
+----------------------------------------------------
+-- Return value: response string
+----------------------------------------------------
+VAR
+    sub_cmd:         STRING[30]
+    args:            STRING[200]
+    args_array:      ARRAY[4] OF STRING[20]
+    num_args:        INTEGER
+    axis_name:       STRING[1]
+    axis_idx:        INTEGER
+    dir_str:         STRING[1]
+    direction:       BOOLEAN
+    speed:           INTEGER
+    step:            REAL
+    i:               INTEGER
+    has_speed:       BOOLEAN
+    has_step:        BOOLEAN
+BEGIN
+    -- Parse command
+    -- Format: JOG_START <AXIS> <DIR> [SPEED] [STEP]
+    SPLIT_CMD(cmd, sub_cmd, args)
+    
+    -- Split arguments by space
+    num_args = SPLIT_ARGS(args, args_array)
+    
+    -- Need at least axis and direction
+    IF num_args < 2 THEN
+        RETURN('1:ERR INVALID_ARGS')
+    ENDIF
+    
+    -- Parse axis
+    axis_name = args_array[1]
+    axis_idx = AXIS_NAME_TO_IDX(axis_name)
+    IF axis_idx = 0 THEN
+        RETURN('1:ERR INVALID_AXIS')
+    ENDIF
+    
+    -- Parse direction
+    dir_str = args_array[2]
+    IF dir_str = '+' THEN
+        direction = TRUE
+    ELSIF dir_str = '-' THEN
+        direction = FALSE
+    ELSE
+        RETURN('1:ERR INVALID_DIRECTION')
+    ENDIF
+    
+    -- Parse optional speed
+    has_speed = FALSE
+    IF num_args >= 3 THEN
+        CNV_STR_INT(args_array[3], speed)
+        has_speed = TRUE
+    ENDIF
+    
+    -- Parse optional step
+    has_step = FALSE
+    IF num_args >= 4 THEN
+        CNV_STR_REAL(args_array[4], step)
+        has_step = TRUE
+    ENDIF
+    
+    -- Call JOG_START with parsed parameters
+    IF has_speed AND has_step THEN
+        RETURN(JOG_START(axis_idx, direction, speed, step, step*2))
+    ELSIF has_speed THEN
+        RETURN(JOG_START(axis_idx, direction, speed, 0, 0))
+    ELSE
+        RETURN(JOG_START(axis_idx, direction, 0, 0, 0))
+    ENDIF
+END HANDLE_JOG_START
+
+
+ROUTINE HANDLE_JOG_STOP(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Handle JOG_STOP command
+-- Format: JOG_STOP <AXIS>
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]: Command string
+----------------------------------------------------
+-- Return value: response string
+----------------------------------------------------
+VAR
+    sub_cmd:         STRING[30]
+    args:            STRING[200]
+    axis_name:       STRING[1]
+    axis_idx:        INTEGER
+BEGIN
+    -- Parse command
+    -- Format: JOG_STOP <AXIS>
+    SPLIT_CMD(cmd, sub_cmd, args)
+    
+    -- Parse axis
+    axis_name = args
+    axis_idx = AXIS_NAME_TO_IDX(axis_name)
+    IF axis_idx = 0 THEN
+        RETURN('1:ERR INVALID_AXIS')
+    ENDIF
+    
+    -- Call JOG_STOP with parsed axis
+    RETURN(JOG_STOP(axis_idx))
+END HANDLE_JOG_STOP
+
+
+-- Helper function to split arguments by space
+ROUTINE SPLIT_ARGS(args: STRING; args_array: ARRAY OF STRING): INTEGER
+VAR
+    i: INTEGER
+    j: INTEGER
+    start_idx: INTEGER
+    len: INTEGER
+    arg_count: INTEGER
+BEGIN
+    len = STR_LEN(args)
+    start_idx = 1
+    arg_count = 0
+    j = 1
+    
+    FOR i = 1 TO len DO
+        IF (SUB_STR(args, i, 1) = ' ') OR (i = len) THEN
+            -- End of argument found
+            IF i = len AND SUB_STR(args, i, 1) <> ' ' THEN
+                -- Include the last character if it's not a space
+                args_array[arg_count+1] = SUB_STR(args, start_idx, j)
+                arg_count = arg_count + 1
+            ELSIF j > 1 THEN
+                args_array[arg_count+1] = SUB_STR(args, start_idx, j-1)
+                arg_count = arg_count + 1
+            ENDIF
+            
+            -- Reset for next argument
+            start_idx = i + 1
+            j = 1
+        ELSE
+            j = j + 1
+        ENDIF
+    ENDFOR
+    
+    RETURN(arg_count)
+END SPLIT_ARGS
+
+
+-- Helper function to convert string to integer
+ROUTINE S_TO_I(str: STRING): INTEGER
+VAR
+    val: INTEGER
+BEGIN
+    CNV_STR_INT(str, val)
+    RETURN(val)
+END S_TO_I
+
+
+-- Helper function to convert string to real
+ROUTINE S_TO_R(str: STRING): REAL
+VAR
+    val: REAL
+BEGIN
+    CNV_STR_REAL(str, val)
+    RETURN(val)
+END S_TO_R
+
+
 ROUTINE HANDLE_CMD(cmd: STRING;
                    resp: STRING) : BOOLEAN
 ----------------------------------------------------
@@ -927,6 +1090,24 @@ BEGIN
     IF SUB_STR(cmd, 1, 9) = 'get_coord' THEN
         resp = GET_COORD(cmd)
         RETURN(TRUE)
+    ENDIF
+    
+    -- jog_start: start continuous jogging of an axis
+    IF SUB_STR(cmd, 1, 9) = 'jog_start' THEN
+        resp = HANDLE_JOG_START(cmd)
+        RETURN(TRUE)
+    ENDIF
+    
+    -- jog_stop: stop jogging of a specific axis
+    IF SUB_STR(cmd, 1, 8) = 'jog_stop' THEN
+        -- Check if it's jog_stop_all or jog_stop
+        IF cmd = 'jog_stop_all' THEN
+            resp = JOG_STOP_ALL
+            RETURN(TRUE)
+        ELSE
+            resp = HANDLE_JOG_STOP(cmd)
+            RETURN(TRUE)
+        ENDIF
     ENDIF
 
     -- if none of the above cmds matched

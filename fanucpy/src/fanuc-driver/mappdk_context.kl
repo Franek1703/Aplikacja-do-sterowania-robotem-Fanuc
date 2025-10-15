@@ -1,12 +1,5 @@
-----------------------------------------------------
--- Author:              Extended by user
--- Original Author:     Agajan Torayev
--- Email:               torayeff@gmail.com
--- Homepage:            https://torayeff.com
--- Copyright:           Agajan Torayev
 -- Description:         Handles kinematic context
 --                      (tool, user frame, coord system)
-----------------------------------------------------
 
 -- Global state variables defined in mappdk_server.kl
 -- g_tool_num:   INTEGER

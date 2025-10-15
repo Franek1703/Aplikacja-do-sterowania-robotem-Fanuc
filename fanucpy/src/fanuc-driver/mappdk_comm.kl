@@ -1,13 +1,4 @@
-----------------------------------------------------
--- Author:              Agajan Torayev
--- Email:               torayeff@gmail.com
--- Homepage:            https://torayeff.com
--- Copyright:           Agajan Torayev
--- Description:         MAPPDK socket communication
---                      functions.
-----------------------------------------------------
-
-
+-- Description:         Handles socket communications
 ROUTINE OPEN_COMM(comm_file: FILE;
                   server_num: INTEGER;
                   port_number: INTEGER)

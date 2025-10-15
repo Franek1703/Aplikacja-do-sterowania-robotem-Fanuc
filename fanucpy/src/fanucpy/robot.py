@@ -414,6 +414,77 @@ class Robot:
         """
         cmd = "get_coord"
         return self.send_cmd(cmd, continue_on_error=continue_on_error)
+        
+    def jog_start(
+        self,
+        axis: Literal["X", "Y", "Z", "W", "P", "R"],
+        direction: Literal["+", "-"],
+        speed: int = None,
+        step: float = None,
+        continue_on_error: bool = False,
+    ) -> tuple[Literal[0, 1], str]:
+        """Start continuous jogging of an axis.
+        
+        Args:
+            axis (str): Axis to jog ("X", "Y", "Z", "W", "P", "R")
+            direction (str): Direction ("+" or "-")
+            speed (int, optional): Speed percentage (1-100). Defaults to 25%.
+            step (float, optional): Step size per tick (mm for XYZ, deg for WPR).
+                Defaults to 0.25mm for XYZ, 0.5deg for WPR.
+            continue_on_error (bool, optional): Whether to continue on error. Defaults to False.
+            
+        Returns:
+            tuple(int, str): Response code and response message.
+        """
+        if axis not in ("X", "Y", "Z", "W", "P", "R"):
+            raise ValueError("Axis must be X, Y, Z, W, P, or R")
+        
+        if direction not in ("+", "-"):
+            raise ValueError("Direction must be + or -")
+        
+        cmd = f"jog_start {axis} {direction}"
+        
+        if speed is not None:
+            cmd += f" {speed}"
+            if step is not None:
+                cmd += f" {step}"
+        
+        return self.send_cmd(cmd, continue_on_error=continue_on_error)
+    
+    def jog_stop(
+        self,
+        axis: Literal["X", "Y", "Z", "W", "P", "R"],
+        continue_on_error: bool = False,
+    ) -> tuple[Literal[0, 1], str]:
+        """Stop jogging of a specific axis.
+        
+        Args:
+            axis (str): Axis to stop jogging ("X", "Y", "Z", "W", "P", "R")
+            continue_on_error (bool, optional): Whether to continue on error. Defaults to False.
+            
+        Returns:
+            tuple(int, str): Response code and response message.
+        """
+        if axis not in ("X", "Y", "Z", "W", "P", "R"):
+            raise ValueError("Axis must be X, Y, Z, W, P, or R")
+            
+        cmd = f"jog_stop {axis}"
+        return self.send_cmd(cmd, continue_on_error=continue_on_error)
+    
+    def jog_stop_all(
+        self,
+        continue_on_error: bool = False,
+    ) -> tuple[Literal[0, 1], str]:
+        """Stop all jogging operations.
+        
+        Args:
+            continue_on_error (bool, optional): Whether to continue on error. Defaults to False.
+            
+        Returns:
+            tuple(int, str): Response code and response message.
+        """
+        cmd = "jog_stop_all"
+        return self.send_cmd(cmd, continue_on_error=continue_on_error)
 
 
 if __name__ == "__main__":
