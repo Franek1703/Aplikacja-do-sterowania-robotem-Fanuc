@@ -1,15 +1,3 @@
-# FanucPy Command-Line Tools
-
-FanucPy provides several command-line tools for controlling your FANUC robot without writing Python code. These tools can be useful for quick testing, debugging, or demonstrating robot functionality.
-
-## Installation
-
-The command-line tools are installed automatically when you install the FanucPy package:
-
-```bash
-pip install -U fanucpy
-```
-
 ## Available Tools
 
 ### Tool, User Frame, and Coordinate System Tool
@@ -93,7 +81,7 @@ python cli_jog.py --help
 - The robot controller must be in remote mode
 - No active alarms or faults should be present on the robot
 - A network connection must be established to the robot's IP address
-- The MAPPDK server must be running on the robot controller
+- The fanuc_remote server must be running on the robot controller
 
 ## Security Considerations
 

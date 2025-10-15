@@ -2,11 +2,11 @@
 
 ## Overview
 
-This folder contains the KAREL and LS program files that implement the Manufacturing Apps Development Kit (MAPPDK) driver for FANUC robots. The driver enables external applications to communicate with and control FANUC robots through a TCP/IP connection, providing a high-level interface for robot control operations.
+This folder contains the KAREL and LS program files that implement the Manufacturing Apps Development Kit (fanuc_remote) driver for FANUC robots. The driver enables external applications to communicate with and control FANUC robots through a TCP/IP connection, providing a high-level interface for robot control operations.
 
 ## Communication Protocol
 
-MAPPDK uses a simple text-based protocol over TCP/IP with the following characteristics:
+fanuc_remote uses a simple text-based protocol over TCP/IP with the following characteristics:
 
 - **Connection**: TCP connection on port 18735 (default)
 - **Command Format**: Text-based commands with parameters separated by colons or spaces
@@ -26,21 +26,21 @@ SERVER: 0:success
 
 | File | Description |
 |------|-------------|
-| `mappdk_server.kl` | Main server program that handles TCP connections and dispatches commands |
-| `mappdk_cmd.kl` | Command handler routines that implement the command processing logic |
-| `mappdk_comm.kl` | Communication utilities for opening/closing TCP connections |
-| `mappdk_utils.kl` | General utility functions used across the driver |
-| `mappdk_context.kl` | Manages kinematic context (tool, user frame, coordinate system) |
-| `mappdk_jog.kl` | Implements continuous jogging functionality similar to iPendant |
-| `mappdk_logger.kl` | Logging functionality for debugging and monitoring |
+| `fanuc_remote_server.kl` | Main server program that handles TCP connections and dispatches commands |
+| `fanuc_remote_cmd.kl` | Command handler routines that implement the command processing logic |
+| `fanuc_remote_comm.kl` | Communication utilities for opening/closing TCP connections |
+| `fanuc_remote_utils.kl` | General utility functions used across the driver |
+| `fanuc_remote_context.kl` | Manages kinematic context (tool, user frame, coordinate system) |
+| `fanuc_remote_jog.kl` | Implements continuous jogging functionality similar to iPendant |
+| `fanuc_remote_logger.kl` | Logging functionality for debugging and monitoring |
 
 ### Motion Execution Programs (TP)
 
 | File | Description |
 |------|-------------|
-| `mappdk_move.ls` | TP program for joint motion execution |
-| `mappdk_movel.ls` | TP program for linear motion execution |
-| `mappdk.ls` | Main entry point TP program |
+| `fanuc_remote_move.ls` | TP program for joint motion execution |
+| `fanuc_remote_movel.ls` | TP program for linear motion execution |
+| `fanuc_remote.ls` | Main entry point TP program |
 | `SET_UTOOL_TP.ls` | TP program for setting the tool frame number |
 | `SET_UFRAME_TP.ls` | TP program for setting the user frame number |
 
@@ -48,14 +48,14 @@ SERVER: 0:success
 
 | File | Description |
 |------|-------------|
-| `MAPPDK_SVR.PC` | Compiled version of the server program |
-| `MAPPDK_LOG.PC` | Compiled version of the logger program |
-| `mappdk_server.pc` | Source code backup of server program |
-| `mappdk_logger.pc` | Source code backup of logger program |
+| `fanuc_remote_SVR.PC` | Compiled version of the server program |
+| `fanuc_remote_LOG.PC` | Compiled version of the logger program |
+| `fanuc_remote_server.pc` | Source code backup of server program |
+| `fanuc_remote_logger.pc` | Source code backup of logger program |
 
 ## Detailed Component Description
 
-### mappdk_server.kl
+### fanuc_remote_server.kl
 
 The main server program that:
 - Initializes the TCP/IP server socket
@@ -65,7 +65,7 @@ The main server program that:
 - Manages the jog tick task for continuous jogging operations
 
 ```karel
-PROGRAM MAPPDK_SVR
+PROGRAM fanuc_remote_SVR
 VAR
     g_tool_num:         INTEGER
     g_uframe_num:       INTEGER
@@ -73,7 +73,7 @@ VAR
 ...
 ```
 
-### mappdk_cmd.kl
+### fanuc_remote_cmd.kl
 
 Contains command handling routines for all supported operations:
 - Motion commands (MOVEJ, MOVEP)
@@ -85,14 +85,14 @@ Contains command handling routines for all supported operations:
 
 The main entry point is the `HANDLE_CMD` routine that dispatches to appropriate handlers.
 
-### mappdk_context.kl
+### fanuc_remote_context.kl
 
 Manages the robot's kinematic context:
 - Stores and applies the tool frame, user frame, and coordinate system settings
 - Provides the `APPLY_KINEMATIC_CONTEXT` routine used before motion execution
 - Ensures consistent coordinate system behavior across operations
 
-### mappdk_jog.kl
+### fanuc_remote_jog.kl
 
 Implements iPendant-like jogging functionality:
 - Maintains state for active jogging axes and directions
@@ -101,14 +101,14 @@ Implements iPendant-like jogging functionality:
 - Executes small, continuous movements while a jog command is active
 - Provides immediate stop functionality when jog is released
 
-### mappdk_comm.kl
+### fanuc_remote_comm.kl
 
 Provides communication utilities:
 - `OPEN_COMM`: Opens a TCP server socket
 - `CLOSE_COMM`: Closes a TCP connection
 - Handles the low-level socket operations
 
-### mappdk_utils.kl
+### fanuc_remote_utils.kl
 
 Contains utility functions:
 - String manipulation
@@ -120,8 +120,8 @@ Contains utility functions:
 ### Motion Programs
 
 The LS files are TP programs that are called from KAREL to execute actual robot motion:
-- `mappdk_move.ls`: Executes joint motions using the PR[81] register
-- `mappdk_movel.ls`: Executes linear motions using the PR[81] register
+- `fanuc_remote_move.ls`: Executes joint motions using the PR[81] register
+- `fanuc_remote_movel.ls`: Executes linear motions using the PR[81] register
 
 ### Frame Setting Programs
 

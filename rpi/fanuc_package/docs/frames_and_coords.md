@@ -15,16 +15,16 @@ The tool/user/coordinate system functionality is implemented with the following 
 
 ### KAREL Components
 
-1. **mappdk_context.kl**:
+1. **fanuc_remote_context.kl**:
    - Defines the `APPLY_KINEMATIC_CONTEXT` routine
    - Manages tool, user frame, and coordinate system state
    - Applies the appropriate settings before motion execution
 
-2. **mappdk_cmd.kl** extensions:
+2. **fanuc_remote_cmd.kl** extensions:
    - Command handlers for SET_TOOL, SET_USER, SET_COORD
    - Command handlers for GET_TOOL, GET_USER, GET_COORD
 
-3. **mappdk_server.kl** integration:
+3. **fanuc_remote_server.kl** integration:
    - Global state variables for tool, user frame, and coordinate system
    - Initialization of default values
 

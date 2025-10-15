@@ -40,9 +40,9 @@ The communication protocol between the Python package and the FANUC robot contro
 fanucpy/
 ├── src/                       # Source code
 │   ├── fanuc-driver/          # KAREL/TP programs for FANUC controller
-│   │   ├── mappdk_server.kl   # Main server program
-│   │   ├── mappdk_cmd.kl      # Command handlers
-│   │   ├── mappdk_jog.kl      # Jogging functionality
+│   │   ├── fanuc_remote_server.kl   # Main server program
+│   │   ├── fanuc_remote_cmd.kl      # Command handlers
+│   │   ├── fanuc_remote_jog.kl      # Jogging functionality
 │   │   ├── ... (other KAREL/TP files)
 │   │   └── README.md          # Documentation for KAREL/TP programs
 │   └── fanucpy/               # Python library

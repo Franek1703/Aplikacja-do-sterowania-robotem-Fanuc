@@ -18,13 +18,13 @@ The `fanucpy` package is a Python interface for communicating with and controlli
 
 The library uses a client-server architecture:
 
-1. The Python code (client) connects to the MAPPDK server running on the FANUC controller
+1. The Python code (client) connects to the fanuc_remote server running on the FANUC controller
 2. Commands are sent as text strings over a TCP/IP socket
 3. The server processes the commands and returns responses
 4. The Python library parses the responses and raises exceptions or returns results
 
 ```
-[Python Application] → [fanucpy] → TCP/IP → [MAPPDK Server on FANUC] → [Robot Controller]
+[Python Application] → [fanucpy] → TCP/IP → [fanuc_remote Server on FANUC] → [Robot Controller]
 ```
 
 ## Detailed Module Description

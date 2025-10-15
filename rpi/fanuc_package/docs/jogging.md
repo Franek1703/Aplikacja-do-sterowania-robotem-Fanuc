@@ -10,17 +10,17 @@ The jogging system is implemented with the following components:
 
 ### KAREL Components
 
-1. **mappdk_jog.kl**: Core jogging functionality
+1. **fanuc_remote_jog.kl**: Core jogging functionality
    - Maintains jogging state (active axes, directions, speeds, steps)
    - Processes incremental motion based on active jog commands
    - Applies transformations based on coordinate system
    - Executes continuous small movements while jog is active
 
-2. **mappdk_cmd.kl** extensions:
+2. **fanuc_remote_cmd.kl** extensions:
    - Command handlers for JOG_START, JOG_STOP, JOG_STOP_ALL
    - Argument parsing and validation
 
-3. **mappdk_server.kl** integration:
+3. **fanuc_remote_server.kl** integration:
    - Jog tick task that executes periodic jog movements
    - Initialization of jogging parameters
 
