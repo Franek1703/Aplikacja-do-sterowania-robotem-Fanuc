@@ -18,9 +18,9 @@ VAR
     -- Position register for working position
     jog_pr: POSITION
     -- Flag to allow multi-axis jogging
-    allow_multi_axis: BOOLEAN
+    multi_axis: BOOLEAN
     -- Count of currently active axes
-    active_axes_count: INTEGER
+    active_axest: INTEGER
 
 
 -- Initialize jog module
@@ -39,12 +39,49 @@ BEGIN
     jog_step_lin = 0.25 -- 0.25mm per tick for XYZ
     jog_step_rot = 0.5  -- 0.5deg per tick for WPR
     jog_interval = 30   -- 30ms between ticks
-    allow_multi_axis = FALSE -- Only one axis at a time (simpler mode)
-    active_axes_count = 0
+    multi_axis = FALSE -- Only one axis at a time (simpler mode)
+    active_axest = 0
     
     WRITE('JOG module initialized with default settings', CR)
 END JOG_INIT
 
+-- Check if robot is busy with other motion
+ROUTINE ROBOT_BUSY: BOOLEAN
+VAR
+    busy: BOOLEAN
+BEGIN
+    -- Check robot motion status
+    -- This is a placeholder - actual implementation would check robot state
+    busy = FALSE
+    
+    RETURN(busy)
+END ROBOT_BUSY
+
+-- Helper functions for converting types to strings (for logging)
+ROUTINE I_TO_S(val: INTEGER): STRING
+VAR
+    s: STRING[10]
+BEGIN
+    CNV_INT_STR(val, 0, 0, s)
+    RETURN(s)
+END I_TO_S
+
+ROUTINE R_TO_S(val: REAL): STRING
+VAR
+    s: STRING[10]
+BEGIN
+    CNV_REAL_STR(val, 0, 3, s)
+    RETURN(s)
+END R_TO_S
+
+ROUTINE B_TO_S(val: BOOLEAN): STRING
+BEGIN
+    IF val THEN
+        RETURN('TRUE')
+    ELSE
+        RETURN('FALSE')
+    ENDIF
+END B_TO_S
 
 -- Start jogging an axis
 ROUTINE JOG_START(axis_idx: INTEGER; direction: BOOLEAN; speed: INTEGER; step_lin: REAL; step_rot: REAL): STRING
@@ -53,25 +90,25 @@ VAR
     cur_posn: XYZWPR
 BEGIN
     -- Check if robot is busy or in fault
-    IF IS_ROBOT_BUSY THEN
+    IF ROBOT_BUSY THEN
         resp = '1:ERR BUSY'
         RETURN(resp)
     ENDIF
     
     -- Check if we're allowing multi-axis and if not, check if another axis is active
-    IF (NOT allow_multi_axis) AND (active_axes_count > 0) AND (NOT jog_active[axis_idx]) THEN
+    IF (NOT multi_axis) AND (active_axest > 0) AND (NOT jog_active[axis_idx]) THEN
         resp = '1:ERR AXIS_ACTIVE'
         RETURN(resp)
     ENDIF
     
+    -- Update count of active axes
+    IF NOT jog_active[axis_idx] THEN
+        active_axest = active_axest + 1
+    ENDIF
+
     -- Set jogging state for this axis
     jog_active[axis_idx] = TRUE
     jog_dir[axis_idx] = direction
-    
-    -- Update count of active axes
-    IF NOT jog_active[axis_idx] THEN
-        active_axes_count = active_axes_count + 1
-    ENDIF
     
     -- Update speed if provided
     IF NOT UNINIT(speed) THEN
@@ -92,7 +129,7 @@ BEGIN
     ENDIF
     
     -- Initialize working position to current position if this is the first active axis
-    IF active_axes_count = 1 THEN
+    IF active_axest = 1 THEN
         cur_posn = CURPOS(0, 0)
         jog_pr = POS(cur_posn.x, cur_posn.y, cur_posn.z, cur_posn.w, cur_posn.p, cur_posn.r, cur_posn.config_data)
     ENDIF
@@ -114,7 +151,7 @@ BEGIN
     -- Check if the axis is active
     IF jog_active[axis_idx] THEN
         jog_active[axis_idx] = FALSE
-        active_axes_count = active_axes_count - 1
+        active_axest = active_axest - 1
         
         WRITE('JOG_STOP: Axis ', I_TO_S(axis_idx), CR)
         
@@ -137,7 +174,7 @@ BEGIN
         jog_active[i] = FALSE
     ENDFOR
     
-    active_axes_count = 0
+    active_axest = 0
     WRITE('JOG_STOP_ALL: All axes stopped', CR)
     
     resp = '0:OK'
@@ -146,7 +183,7 @@ END JOG_STOP_ALL
 
 
 -- Apply a delta in world coordinates
-ROUTINE APPLY_INC_WORLD(delta: XYZWPR)
+ROUTINE APPLY_WINC(delta: XYZWPR)
 VAR
     new_pos: XYZWPR
 BEGIN
@@ -159,7 +196,7 @@ BEGIN
     new_pos.r = jog_pr.r + delta.r
     
     jog_pr = new_pos
-END APPLY_INC_WORLD
+END APPLY_WINC
 
 
 -- Apply a delta in user coordinates
@@ -180,7 +217,7 @@ BEGIN
     world_delta = TRANSFORM_DELTA(delta, user_to_world)
     
     -- Apply transformed delta to position
-    APPLY_INC_WORLD(world_delta)
+    APPLY_WINC(world_delta)
 END APPLY_INC_USER
 
 
@@ -202,7 +239,7 @@ BEGIN
     world_delta = TRANSFORM_DELTA(delta, tool_to_world)
     
     -- Apply transformed delta to position
-    APPLY_INC_WORLD(world_delta)
+    APPLY_WINC(world_delta)
 END APPLY_INC_TOOL
 
 
@@ -252,7 +289,7 @@ END GET_TOOL_FRAME_TO_WORLD
 
 
 -- Helper function for axis name to index conversion
-ROUTINE AXIS_NAME_TO_IDX(axis_name: STRING): INTEGER
+ROUTINE AXIS2IDX(axis_name: STRING): INTEGER
 VAR
     idx: INTEGER
 BEGIN
@@ -274,47 +311,7 @@ BEGIN
     ENDIF
     
     RETURN(idx)
-END AXIS_NAME_TO_IDX
-
-
--- Check if robot is busy with other motion
-ROUTINE IS_ROBOT_BUSY: BOOLEAN
-VAR
-    busy: BOOLEAN
-BEGIN
-    -- Check robot motion status
-    -- This is a placeholder - actual implementation would check robot state
-    busy = FALSE
-    
-    RETURN(busy)
-END IS_ROBOT_BUSY
-
-
--- Helper functions for converting types to strings (for logging)
-ROUTINE I_TO_S(val: INTEGER): STRING
-VAR
-    s: STRING[10]
-BEGIN
-    CNV_INT_STR(val, 0, 0, s)
-    RETURN(s)
-END I_TO_S
-
-ROUTINE R_TO_S(val: REAL): STRING
-VAR
-    s: STRING[10]
-BEGIN
-    CNV_REAL_STR(val, 0, 3, s)
-    RETURN(s)
-END R_TO_S
-
-ROUTINE B_TO_S(val: BOOLEAN): STRING
-BEGIN
-    IF val THEN
-        RETURN('TRUE')
-    ELSE
-        RETURN('FALSE')
-    ENDIF
-END B_TO_S
+END AXIS2IDX
 
 
 -- Execute one tick of jog motion if any axes are active
@@ -326,12 +323,12 @@ VAR
     status: INTEGER
 BEGIN
     -- If no axes are active, do nothing
-    IF active_axes_count = 0 THEN
+    IF active_axest = 0 THEN
         RETURN
     ENDIF
     
     -- Apply kinematic context (tool, user frame, coord system)
-    APPLY_KINEMATIC_CONTEXT
+    APL_KIN_CTX
     
     -- Calculate speed factor (percentage of full speed)
     speed_factor = jog_speed / 100.0
@@ -347,15 +344,14 @@ BEGIN
     -- Apply deltas for active axes
     FOR i = 1 TO 6 DO
         IF jog_active[i] THEN
-            CASE i OF
-                -- Linear axes use linear step
-                CASE(1): -- X
+            SELECT i OF
+                CASE (1): -- X
                     IF jog_dir[i] THEN
                         delta.x = jog_step_lin * speed_factor
                     ELSE
                         delta.x = -jog_step_lin * speed_factor
                     ENDIF
-                CASE(2): -- Y
+                CASE (2): -- Y
                     IF jog_dir[i] THEN
                         delta.y = jog_step_lin * speed_factor
                     ELSE
@@ -390,22 +386,22 @@ BEGIN
                 ELSE:
                     -- Invalid axis (shouldn't happen)
                     LOG_INFO('JOG_TICK: Invalid axis index: ' + I_TO_S(i))
-            ENDCASE
+            ENDSELECT
         ENDIF
     ENDFOR
     
     -- Apply delta based on coordinate system
-    CASE g_coord_type OF
-        CASE(0): -- WORLD
-            APPLY_INC_WORLD(delta)
-        CASE(1): -- USER
+    SELECT g_coord_type OF
+        CASE (0): -- WORLD
+            APPLY_WINC(delta)
+        CASE (1): -- USER
             APPLY_INC_USER(delta)
-        CASE(2): -- TOOL
+        CASE (2): -- TOOL
             APPLY_INC_TOOL(delta)
         ELSE:
             -- Invalid coord type, use WORLD as default
-            APPLY_INC_WORLD(delta)
-    ENDCASE
+            APPLY_WINC(delta)
+    ENDSELECT
     
     -- Execute motion to new position
     MOVE_TO_POSITION(jog_pr, status)

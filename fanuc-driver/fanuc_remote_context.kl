@@ -6,7 +6,7 @@
 -- g_uframe_num: INTEGER
 -- g_coord_type: INTEGER  -- 0=WORLD, 1=USER, 2=TOOL
 
-ROUTINE APPLY_KINEMATIC_CONTEXT
+ROUTINE APL_KIN_CTX
 ----------------------------------------------------
 -- Function: Applies the current tool, user frame and
 --           coordinate system context before any move
@@ -24,18 +24,18 @@ BEGIN
     
     -- Set coordinate system based on global state
     -- 0=WORLD, 1=USER, 2=TOOL
-    CASE g_coord_type OF
-        CASE(0):
+    SELECT g_coord_type OF
+        CASE (0):
             -- WORLD coordinates
             SET_VAR(entry, '*SYSTEM*', '$MNCOORDSYS[1]', 0, status)
-        CASE(1):
+        CASE (1):
             -- USER coordinates 
             SET_VAR(entry, '*SYSTEM*', '$MNCOORDSYS[1]', 1, status)
-        CASE(2):
+        CASE (2):
             -- TOOL coordinates
             SET_VAR(entry, '*SYSTEM*', '$MNCOORDSYS[1]', 2, status)
         ELSE:
             -- Default to WORLD if invalid
             SET_VAR(entry, '*SYSTEM*', '$MNCOORDSYS[1]', 0, status)
-    ENDCASE
-END APPLY_KINEMATIC_CONTEXT
+    ENDSELECT
+END APL_KIN_CTX

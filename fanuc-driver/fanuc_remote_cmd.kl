@@ -1,6 +1,30 @@
 -- Description:         Handles commands sent from
 --                      external program.
 
+ROUTINE SPLIT_CMD(cmd, sub_cmd, args: STRING)
+VAR
+    i:                  INTEGER
+BEGIN
+    -- Extract command name and arguments
+    sub_cmd = ''
+    args = ''
+    -- Find first colon
+    FOR i = 1 TO STR_LEN(cmd) DO
+        IF SUB_STR(cmd, i, 1) = ':' THEN
+            sub_cmd = SUB_STR(cmd, 1, i-1)
+            args = SUB_STR(cmd, i+1, STR_LEN(cmd)-i)
+            RETURN
+        ENDIF
+    ENDFOR
+    -- No colon found, entire string is command
+    sub_cmd = cmd
+END SPLIT_CMD
+
+ROUTINE LOG_INFO(msg: STRING)
+BEGIN
+    WRITE(msg, CR)
+END LOG_INFO
+
 ROUTINE GET_CURPOS(cmd: STRING): STRING
 ----------------------------------------------------
 -- Function: Get current cartesian position of TCP.
@@ -372,11 +396,11 @@ END MOVEP
 
 
 
-ROUTINE FANUCREMOTECALL(cmd: STRING) : STRING
+ROUTINE REMOTECALL(cmd: STRING) : STRING
 ----------------------------------------------------
 -- Function: Calls external program.
 -- cmd string should follow the below format:
--- 'FANUCREMOTEcall:PROGNAME'
+-- 'REMOTECALL:PROGNAME'
 ----------------------------------------------------
 -- Arguments:
 --      cmd [IN]:           command string.
@@ -388,13 +412,13 @@ VAR
     prg_name:       STRING[32]
     prog_index:     INTEGER
 BEGIN
-    -- Get prog name from 'FANUCREMOTEcall:PROG_NAME'
+    -- Get prog name from 'REMOTECALL:PROG_NAME'
     prg_name = SUB_STR(cmd, 12, STR_LEN(cmd) - 11)
     CALL_PROGLIN(prg_name, 1, prog_index, FALSE)
 
     resp = '0:success'
     RETURN(resp)
-END FANUCREMOTECALL
+END REMOTECALL
 
 
 ROUTINE GET_RDO(cmd: STRING): STRING
@@ -630,7 +654,7 @@ BEGIN
     ENDIF
     
     -- Apply kinematic context
-    APPLY_KINEMATIC_CONTEXT
+    APL_KIN_CTX
     
     -- Log success
     LOG_INFO('Tool number set to ' + args)
@@ -678,7 +702,7 @@ BEGIN
     ENDIF
     
     -- Apply kinematic context
-    APPLY_KINEMATIC_CONTEXT
+    APL_KIN_CTX
     
     -- Log success
     LOG_INFO('User frame number set to ' + args)
@@ -709,16 +733,20 @@ BEGIN
     -- Convert string to coord type
     IF args = 'WORLD' THEN
         g_coord_type = 0
-    ELSIF args = 'USER' THEN
-        g_coord_type = 1
-    ELSIF args = 'TOOL' THEN
-        g_coord_type = 2
-    ELSE
-        RETURN('1:invalid-coord-type')
+    ELSE 
+    	IF args = 'USER' THEN
+    		 g_coord_type = 1
+    	ELSE 
+    		IF args = 'TOOL' THEN
+        		g_coord_type = 2
+    		ELSE
+        		RETURN('1:invalid-coord-type')
+    		ENDIF
+    	ENDIF	
     ENDIF
     
     -- Apply kinematic context
-    APPLY_KINEMATIC_CONTEXT
+    APL_KIN_CTX
     
     -- Log success
     LOG_INFO('Coordinate system set to ' + args)
@@ -786,22 +814,60 @@ VAR
     resp:            STRING[254]
 BEGIN
     -- Convert coord type to string
-    CASE g_coord_type OF
-        CASE(0):
+    SELECT g_coord_type OF
+        CASE (0):
             resp = '0:WORLD'
-        CASE(1):
+        CASE (1):
             resp = '0:USER'
-        CASE(2):
+        CASE (2):
             resp = '0:TOOL'
         ELSE:
             resp = '1:unknown-coord-type'
-    ENDCASE
+    ENDSELECT
     
     RETURN(resp)
 END GET_COORD
 
+-- Helper function to split arguments by space
+ROUTINE SPLIT_ARGS(args: STRING; args_array: ARRAY OF STRING): INTEGER
+VAR
+    i: INTEGER
+    j: INTEGER
+    start_idx: INTEGER
+    len: INTEGER
+    arg_count: INTEGER
+BEGIN
+    len = STR_LEN(args)
+    start_idx = 1
+    arg_count = 0
+    j = 1
+    
+    FOR i = 1 TO len DO
+        IF (SUB_STR(args, i, 1) = ' ') OR (i = len) THEN
+            -- End of argument found
+            IF i = len AND SUB_STR(args, i, 1) <> ' ' THEN
+                -- Include the last character if it's not a space
+                args_array[arg_count+1] = SUB_STR(args, start_idx, j)
+                arg_count = arg_count + 1
+            ELSE
+            	IF j > 1 THEN
+                	args_array[arg_count+1] = SUB_STR(args, start_idx, j-1)
+                	arg_count = arg_count + 1
+            	ENDIF
+            ENDIF
+            
+            -- Reset for next argument
+            start_idx = i + 1
+            j = 1
+        ELSE
+            j = j + 1
+        ENDIF
+    ENDFOR
+    
+    RETURN(arg_count)
+END SPLIT_ARGS
 
-ROUTINE HANDLE_JOG_START(cmd: STRING): STRING
+ROUTINE JOG_START_H(cmd: STRING): STRING
 ----------------------------------------------------
 -- Function: Handle JOG_START command
 -- Format: JOG_START <AXIS> <DIR> [SPEED] [STEP]
@@ -840,7 +906,7 @@ BEGIN
     
     -- Parse axis
     axis_name = args_array[1]
-    axis_idx = AXIS_NAME_TO_IDX(axis_name)
+    axis_idx = AXIS2IDX(axis_name)
     IF axis_idx = 0 THEN
         RETURN('1:ERR INVALID_AXIS')
     ENDIF
@@ -849,10 +915,12 @@ BEGIN
     dir_str = args_array[2]
     IF dir_str = '+' THEN
         direction = TRUE
-    ELSIF dir_str = '-' THEN
-        direction = FALSE
     ELSE
-        RETURN('1:ERR INVALID_DIRECTION')
+    	IF dir_str = '-' THEN
+        	direction = FALSE
+   	 ELSE
+        	RETURN('1:ERR INVALID_DIRECTION')
+    	ENDIF
     ENDIF
     
     -- Parse optional speed
@@ -872,15 +940,17 @@ BEGIN
     -- Call JOG_START with parsed parameters
     IF has_speed AND has_step THEN
         RETURN(JOG_START(axis_idx, direction, speed, step, step*2))
-    ELSIF has_speed THEN
-        RETURN(JOG_START(axis_idx, direction, speed, 0, 0))
     ELSE
-        RETURN(JOG_START(axis_idx, direction, 0, 0, 0))
+    	IF has_speed THEN
+        	RETURN(JOG_START(axis_idx, direction, speed, 0, 0))
+   	 ELSE
+        	RETURN(JOG_START(axis_idx, direction, 0, 0, 0))
+    	ENDIF
     ENDIF
-END HANDLE_JOG_START
+END JOG_START_H
 
 
-ROUTINE HANDLE_JOG_STOP(cmd: STRING): STRING
+ROUTINE JOG_STOP_H(cmd: STRING): STRING
 ----------------------------------------------------
 -- Function: Handle JOG_STOP command
 -- Format: JOG_STOP <AXIS>
@@ -902,53 +972,14 @@ BEGIN
     
     -- Parse axis
     axis_name = args
-    axis_idx = AXIS_NAME_TO_IDX(axis_name)
+    axis_idx = AXIS2IDX(axis_name)
     IF axis_idx = 0 THEN
         RETURN('1:ERR INVALID_AXIS')
     ENDIF
     
     -- Call JOG_STOP with parsed axis
     RETURN(JOG_STOP(axis_idx))
-END HANDLE_JOG_STOP
-
-
--- Helper function to split arguments by space
-ROUTINE SPLIT_ARGS(args: STRING; args_array: ARRAY OF STRING): INTEGER
-VAR
-    i: INTEGER
-    j: INTEGER
-    start_idx: INTEGER
-    len: INTEGER
-    arg_count: INTEGER
-BEGIN
-    len = STR_LEN(args)
-    start_idx = 1
-    arg_count = 0
-    j = 1
-    
-    FOR i = 1 TO len DO
-        IF (SUB_STR(args, i, 1) = ' ') OR (i = len) THEN
-            -- End of argument found
-            IF i = len AND SUB_STR(args, i, 1) <> ' ' THEN
-                -- Include the last character if it's not a space
-                args_array[arg_count+1] = SUB_STR(args, start_idx, j)
-                arg_count = arg_count + 1
-            ELSIF j > 1 THEN
-                args_array[arg_count+1] = SUB_STR(args, start_idx, j-1)
-                arg_count = arg_count + 1
-            ENDIF
-            
-            -- Reset for next argument
-            start_idx = i + 1
-            j = 1
-        ELSE
-            j = j + 1
-        ENDIF
-    ENDFOR
-    
-    RETURN(arg_count)
-END SPLIT_ARGS
-
+END JOG_STOP_H
 
 -- Helper function to convert string to integer
 ROUTINE S_TO_I(str: STRING): INTEGER
@@ -1019,7 +1050,7 @@ BEGIN
 
     -- fanuccall: call external TP program
     IF SUB_STR(cmd, 1, 10) = 'fanuccall' THEN
-        resp = FANUCREMOTECALL(cmd)
+        resp = REMOTECALL(cmd)
         RETURN(TRUE)
     ENDIF
 
@@ -1091,7 +1122,7 @@ BEGIN
     
     -- jog_start: start continuous jogging of an axis
     IF SUB_STR(cmd, 1, 9) = 'jog_start' THEN
-        resp = HANDLE_JOG_START(cmd)
+        resp = JOG_START_H(cmd)
         RETURN(TRUE)
     ENDIF
     
@@ -1099,10 +1130,10 @@ BEGIN
     IF SUB_STR(cmd, 1, 8) = 'jog_stop' THEN
         -- Check if it's jog_stop_all or jog_stop
         IF cmd = 'jog_stop_all' THEN
-            resp = JOG_STOP_ALL
+            resp = JOG_STOP_ALL()
             RETURN(TRUE)
         ELSE
-            resp = HANDLE_JOG_STOP(cmd)
+            resp = JOG_STOP_H(cmd)
             RETURN(TRUE)
         ENDIF
     ENDIF

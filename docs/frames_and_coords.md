@@ -16,7 +16,7 @@ The tool/user/coordinate system functionality is implemented with the following 
 ### KAREL Components
 
 1. **fanuc_remote_context.kl**:
-   - Defines the `APPLY_KINEMATIC_CONTEXT` routine
+   - Defines the `APL_KIN_CTX` routine
    - Manages tool, user frame, and coordinate system state
    - Applies the appropriate settings before motion execution
 
@@ -121,7 +121,7 @@ This is useful for operations that need to move the tool in its local orientatio
    - Server applies the new kinematic context
 
 3. **Motion Execution**:
-   - Before any motion, `APPLY_KINEMATIC_CONTEXT` is called
+   - Before any motion, `APL_KIN_CTX` is called
    - This ensures the current tool, user frame, and coordinate system are used
 
 ### Integration with Other Features

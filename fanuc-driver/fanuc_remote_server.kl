@@ -31,11 +31,11 @@ CONST
 
 
 -- Include routines
+%INCLUDE fanuc_remote_context
 %INCLUDE fanuc_remote_utils
 %INCLUDE fanuc_remote_comm
-%INCLUDE fanuc_remote_cmd
-%INCLUDE fanuc_remote_context
 %INCLUDE fanuc_remote_jog
+%INCLUDE fanuc_remote_cmd
 
 -- Jog tick task declaration
 ROUTINE JOG_TICK_TASK

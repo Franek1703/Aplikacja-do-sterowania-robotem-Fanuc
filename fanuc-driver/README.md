@@ -87,7 +87,7 @@ The main entry point is the `HANDLE_CMD` routine that dispatches to appropriate 
 
 Manages the robot's kinematic context:
 - Stores and applies the tool frame, user frame, and coordinate system settings
-- Provides the `APPLY_KINEMATIC_CONTEXT` routine used before motion execution
+- Provides the `APL_KIN_CTX` routine used before motion execution
 - Ensures consistent coordinate system behavior across operations
 
 ### fanuc_remote_jog.kl
