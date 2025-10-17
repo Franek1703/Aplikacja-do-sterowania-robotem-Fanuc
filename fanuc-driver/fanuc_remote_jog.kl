@@ -16,11 +16,105 @@ VAR
     -- Interval between jog ticks in milliseconds
     jog_interval: INTEGER
     -- Position register for working position
-    jog_pr: POSITION
+    jog_pr: XYZWPR
     -- Flag to allow multi-axis jogging
     multi_axis: BOOLEAN
     -- Count of currently active axes
     active_axest: INTEGER
+    
+    
+-- External variables
+--COMMON VAR g_coord_type: INTEGER FROM fanuc_remote_server
+-- Forward declarations for external routines
+
+-- Forward declarations for internal routines
+--ROUTINE APPLY_WINC(delta: XYZWPR);
+--ROUTINE APL_INC_USR(delta: XYZWPR);
+--ROUTINE APL_INC_TL(delta: XYZWPR);
+--ROUTINE TRANS_DELTA(delta: XYZWPR; transform: XYZWPR): XYZWPR;
+--ROUTINE GET_UFRM_WLD(): XYZWPR;
+--ROUTINE GET_TFRM_WLD(): XYZWPR;
+--ROUTINE MOVE_TO_POS(POS: XYZWPR; status: INTEGER);
+
+
+-- Execute motion to a position
+ROUTINE MOVE_TO_POS(POS: XYZWPR; status: INTEGER)
+VAR
+    -- PR register number for jog motion
+    PR_NUM: INTEGER
+    entry: INTEGER
+    grp_num: INTEGER
+BEGIN
+    PR_NUM = 81 -- Use the same register as other fanuc_remote operations
+    grp_num = 1
+    
+    -- Set the position register
+    SET_POS_REG(PR_NUM, POS, status)
+    IF status <> 0 THEN
+        RETURN
+    ENDIF
+    
+    -- Set motion parameters
+    SET_INT_REG(81, jog_speed, status) -- speed
+    SET_INT_REG(82, 100, status)       -- acceleration
+    SET_INT_REG(83, 100, status)       -- CNT value for blending
+    
+    -- Execute motion (using the same TP program as other fanuc_remote operations)
+    CALL_PROG('FANUC_REMOTE_MOVEL', status)
+END MOVE_TO_POS
+
+-- Get transform from tool frame to world frame
+ROUTINE GET_TFRM_WLD: XYZWPR
+VAR
+    transform: XYZWPR
+BEGIN
+    -- Get the transformation matrix for the current tool frame
+    -- This would typically involve getting the current UTOOL data
+    
+    -- Placeholder for actual implementation
+    transform.x = 0
+    transform.y = 0
+    transform.z = 0
+    transform.w = 0
+    transform.p = 0
+    transform.r = 0
+    
+    RETURN(transform)
+END GET_TFRM_WLD
+
+-- Get transform from user frame to world frame
+ROUTINE GET_UFRM_WLD: XYZWPR
+VAR
+    transform: XYZWPR
+BEGIN
+    -- Get the transformation matrix for the current user frame
+    -- This would typically involve getting the current UFRAME data
+    
+    -- Placeholder for actual implementation
+    transform.x = 0
+    transform.y = 0
+    transform.z = 0
+    transform.w = 0
+    transform.p = 0
+    transform.r = 0
+    
+    RETURN(transform)
+END GET_UFRM_WLD
+
+
+-- Helper routine to transform a delta between coordinate systems
+ROUTINE TRANS_DELTA(delta: XYZWPR; transform: XYZWPR): XYZWPR
+VAR
+    result: XYZWPR
+BEGIN
+    -- Simplified transformation - in actual implementation would use matrices
+    -- This is a placeholder for the actual transformation logic
+    
+    -- For now we'll just pass through the delta (this needs proper implementation)
+    result = delta
+    
+    RETURN(result)
+END TRANS_DELTA
 
 
 -- Initialize jog module
@@ -142,6 +236,65 @@ BEGIN
     RETURN(resp)
 END JOG_START
 
+-- Apply a delta in world coordinates
+ROUTINE APPLY_WINC(delta: XYZWPR)
+VAR
+    new_pos: XYZWPR
+BEGIN
+    -- Add delta directly to the working position in world coordinates
+    new_pos.x = jog_pr.x + delta.x
+    new_pos.y = jog_pr.y + delta.y
+    new_pos.z = jog_pr.z + delta.z
+    new_pos.w = jog_pr.w + delta.w
+    new_pos.p = jog_pr.p + delta.p
+    new_pos.r = jog_pr.r + delta.r
+    
+    jog_pr = new_pos
+END APPLY_WINC
+
+-- Apply a delta in tool coordinates
+ROUTINE APL_INC_TL(delta: XYZWPR)
+VAR
+    new_pos: XYZWPR
+    tool_world: XYZWPR
+    world_delta: XYZWPR
+BEGIN
+    -- Transform delta from tool frame to world frame
+    -- This is simplified - in actual implementation would use 
+    -- proper coordinate transformation based on active tool frame
+    
+    -- Get transform from tool frame to world
+    tool_world = GET_TFRM_WLD
+    
+    -- Apply transformation to delta
+    world_delta = TRANS_DELTA(delta, tool_world)
+    
+    -- Apply transformed delta to position
+    APPLY_WINC(world_delta)
+END APL_INC_TL
+
+
+-- Apply a delta in user coordinates
+ROUTINE APL_INC_USR(delta: XYZWPR)
+VAR
+    new_pos: XYZWPR
+    user_world: XYZWPR
+    world_delta: XYZWPR
+BEGIN
+    -- Transform delta from user frame to world frame
+    -- This is simplified - in actual implementation would use 
+    -- proper coordinate transformation based on active user frame
+    
+    -- Get transform from user frame to world
+    user_world = GET_UFRM_WLD
+    
+    -- Apply transformation to delta
+    world_delta = TRANS_DELTA(delta, user_world)
+    
+    -- Apply transformed delta to position
+    APPLY_WINC(world_delta)
+END APL_INC_USR
+
 
 -- Stop jogging an axis
 ROUTINE JOG_STOP(axis_idx: INTEGER): STRING
@@ -182,133 +335,28 @@ BEGIN
 END JOG_STOP_ALL
 
 
--- Apply a delta in world coordinates
-ROUTINE APPLY_WINC(delta: XYZWPR)
-VAR
-    new_pos: XYZWPR
-BEGIN
-    -- Add delta directly to the working position in world coordinates
-    new_pos.x = jog_pr.x + delta.x
-    new_pos.y = jog_pr.y + delta.y
-    new_pos.z = jog_pr.z + delta.z
-    new_pos.w = jog_pr.w + delta.w
-    new_pos.p = jog_pr.p + delta.p
-    new_pos.r = jog_pr.r + delta.r
-    
-    jog_pr = new_pos
-END APPLY_WINC
-
-
--- Apply a delta in user coordinates
-ROUTINE APPLY_INC_USER(delta: XYZWPR)
-VAR
-    new_pos: XYZWPR
-    user_to_world: XYZWPR
-    world_delta: XYZWPR
-BEGIN
-    -- Transform delta from user frame to world frame
-    -- This is simplified - in actual implementation would use 
-    -- proper coordinate transformation based on active user frame
-    
-    -- Get transform from user frame to world
-    user_to_world = GET_USER_FRAME_TO_WORLD
-    
-    -- Apply transformation to delta
-    world_delta = TRANSFORM_DELTA(delta, user_to_world)
-    
-    -- Apply transformed delta to position
-    APPLY_WINC(world_delta)
-END APPLY_INC_USER
-
-
--- Apply a delta in tool coordinates
-ROUTINE APPLY_INC_TOOL(delta: XYZWPR)
-VAR
-    new_pos: XYZWPR
-    tool_to_world: XYZWPR
-    world_delta: XYZWPR
-BEGIN
-    -- Transform delta from tool frame to world frame
-    -- This is simplified - in actual implementation would use 
-    -- proper coordinate transformation based on active tool frame
-    
-    -- Get transform from tool frame to world
-    tool_to_world = GET_TOOL_FRAME_TO_WORLD
-    
-    -- Apply transformation to delta
-    world_delta = TRANSFORM_DELTA(delta, tool_to_world)
-    
-    -- Apply transformed delta to position
-    APPLY_WINC(world_delta)
-END APPLY_INC_TOOL
-
-
--- Helper routine to transform a delta between coordinate systems
-ROUTINE TRANSFORM_DELTA(delta: XYZWPR; transform: XYZWPR): XYZWPR
-VAR
-    result: XYZWPR
-BEGIN
-    -- Simplified transformation - in actual implementation would use matrices
-    -- This is a placeholder for the actual transformation logic
-    
-    -- For now we'll just pass through the delta (this needs proper implementation)
-    result = delta
-    
-    RETURN(result)
-END TRANSFORM_DELTA
-
-
--- Get transform from user frame to world frame
-ROUTINE GET_USER_FRAME_TO_WORLD: XYZWPR
-VAR
-    transform: XYZWPR
-BEGIN
-    -- Get the transformation matrix for the current user frame
-    -- This would typically involve getting the current UFRAME data
-    
-    -- Placeholder for actual implementation
-    transform = POS(0, 0, 0, 0, 0, 0, 0)
-    
-    RETURN(transform)
-END GET_USER_FRAME_TO_WORLD
-
-
--- Get transform from tool frame to world frame
-ROUTINE GET_TOOL_FRAME_TO_WORLD: XYZWPR
-VAR
-    transform: XYZWPR
-BEGIN
-    -- Get the transformation matrix for the current tool frame
-    -- This would typically involve getting the current UTOOL data
-    
-    -- Placeholder for actual implementation
-    transform = POS(0, 0, 0, 0, 0, 0, 0)
-    
-    RETURN(transform)
-END GET_TOOL_FRAME_TO_WORLD
-
-
 -- Helper function for axis name to index conversion
 ROUTINE AXIS2IDX(axis_name: STRING): INTEGER
 VAR
     idx: INTEGER
 BEGIN
     -- Convert axis name to index (1=X, 2=Y, 3=Z, 4=W, 5=P, 6=R)
-    IF axis_name = 'X' THEN
-        idx = 1
-    ELSIF axis_name = 'Y' THEN
-        idx = 2
-    ELSIF axis_name = 'Z' THEN
-        idx = 3
-    ELSIF axis_name = 'W' THEN
-        idx = 4
-    ELSIF axis_name = 'P' THEN
-        idx = 5
-    ELSIF axis_name = 'R' THEN
-        idx = 6
-    ELSE
-        idx = 0 -- Invalid axis
-    ENDIF
+    SELECT axis_name OF
+        CASE ('X'):
+            idx = 1
+        CASE ('Y'):
+            idx = 2
+        CASE ('Z'):
+            idx = 3
+        CASE ('W'):
+            idx = 4
+        CASE ('P'):
+            idx = 5
+        CASE ('R'):
+            idx = 6
+        ELSE:
+            idx = 0 -- Invalid axis
+    ENDSELECT
     
     RETURN(idx)
 END AXIS2IDX
@@ -395,46 +443,19 @@ BEGIN
         CASE (0): -- WORLD
             APPLY_WINC(delta)
         CASE (1): -- USER
-            APPLY_INC_USER(delta)
+            APL_INC_USR(delta)
         CASE (2): -- TOOL
-            APPLY_INC_TOOL(delta)
+            APL_INC_TL(delta)
         ELSE:
             -- Invalid coord type, use WORLD as default
             APPLY_WINC(delta)
     ENDSELECT
     
     -- Execute motion to new position
-    MOVE_TO_POSITION(jog_pr, status)
+    MOVE_TO_POS(jog_pr, status)
     
     -- Check for errors
     IF status <> 0 THEN
         WRITE('JOG_TICK: Motion error: ', I_TO_S(status), CR)
     ENDIF
 END JOG_TICK
-
-
--- Execute motion to a position
-ROUTINE MOVE_TO_POSITION(pos: XYZWPR; status: INTEGER)
-VAR
-    -- PR register number for jog motion
-    PR_NUM: INTEGER
-    entry: INTEGER
-    grp_num: INTEGER
-BEGIN
-    PR_NUM = 81 -- Use the same register as other fanuc_remote operations
-    grp_num = 1
-    
-    -- Set the position register
-    SET_POS_REG(PR_NUM, pos, status)
-    IF status <> 0 THEN
-        RETURN
-    ENDIF
-    
-    -- Set motion parameters
-    SET_INT_REG(81, jog_speed, status) -- speed
-    SET_INT_REG(82, 100, status)       -- acceleration
-    SET_INT_REG(83, 100, status)       -- CNT value for blending
-    
-    -- Execute motion (using the same TP program as other fanuc_remote operations)
-    CALL_PROG('FANUC_REMOTE_MOVEL', status)
-END MOVE_TO_POSITION

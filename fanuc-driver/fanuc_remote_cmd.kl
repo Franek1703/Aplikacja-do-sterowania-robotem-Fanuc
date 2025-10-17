@@ -1130,7 +1130,7 @@ BEGIN
     IF SUB_STR(cmd, 1, 8) = 'jog_stop' THEN
         -- Check if it's jog_stop_all or jog_stop
         IF cmd = 'jog_stop_all' THEN
-            resp = JOG_STOP_ALL()
+            resp = JOG_STOP_ALL
             RETURN(TRUE)
         ELSE
             resp = JOG_STOP_H(cmd)
