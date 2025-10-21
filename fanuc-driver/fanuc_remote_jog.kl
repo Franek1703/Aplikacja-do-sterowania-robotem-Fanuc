@@ -2,25 +2,25 @@
 --                      similar to iPendant controls
 
 -- Global jogging state variables
-VAR
+--VAR
     -- Active status for each axis (X,Y,Z,W,P,R) - TRUE if jogging
-    jog_active: ARRAY[6] OF BOOLEAN
+  --  jog_active: ARRAY[6] OF BOOLEAN
     -- Direction for each axis (TRUE = positive, FALSE = negative)
-    jog_dir: ARRAY[6] OF BOOLEAN
+  --  jog_dir: ARRAY[6] OF BOOLEAN
     -- Speed percentage (1-100)
-    jog_speed: INTEGER
+   -- jog_speed: INTEGER
     -- Step size in mm for linear axes (X,Y,Z)
-    jog_step_lin: REAL
+  --  jog_step_lin: REAL
     -- Step size in degrees for rotational axes (W,P,R)
-    jog_step_rot: REAL
+  --  jog_step_rot: REAL
     -- Interval between jog ticks in milliseconds
-    jog_interval: INTEGER
+ --   jog_interval: INTEGER
     -- Position register for working position
-    jog_pr: XYZWPR
+  --  jog_pr: XYZWPR
     -- Flag to allow multi-axis jogging
-    multi_axis: BOOLEAN
+  --  multi_axis: BOOLEAN
     -- Count of currently active axes
-    active_axest: INTEGER
+  --  active_axest: INTEGER
     
     
 -- External variables
@@ -339,25 +339,37 @@ END JOG_STOP_ALL
 ROUTINE AXIS2IDX(axis_name: STRING): INTEGER
 VAR
     idx: INTEGER
+    c   : STRING[1]
 BEGIN
     -- Convert axis name to index (1=X, 2=Y, 3=Z, 4=W, 5=P, 6=R)
-    SELECT axis_name OF
-        CASE ('X'):
-            idx = 1
-        CASE ('Y'):
+    c = SUB_STR(axis_name, 1, 1)
+
+    IF (c = 'X') OR (c = 'x') THEN
+        idx = 1
+    ELSE
+        IF (c = 'Y') OR (c = 'y') THEN
             idx = 2
-        CASE ('Z'):
-            idx = 3
-        CASE ('W'):
-            idx = 4
-        CASE ('P'):
-            idx = 5
-        CASE ('R'):
-            idx = 6
-        ELSE:
-            idx = 0 -- Invalid axis
-    ENDSELECT
-    
+        ELSE
+            IF (c = 'Z') OR (c = 'z') THEN
+                idx = 3
+            ELSE
+                IF (c = 'W') OR (c = 'w') THEN
+                    idx = 4
+                ELSE
+                    IF (c = 'P') OR (c = 'p') THEN
+                        idx = 5
+                    ELSE
+                        IF (c = 'R') OR (c = 'r') THEN
+                            idx = 6
+                        ELSE
+                            idx = 0  -- invalid axis
+                        ENDIF
+                    ENDIF
+                ENDIF
+            ENDIF
+        ENDIF
+    ENDIF
+
     RETURN(idx)
 END AXIS2IDX
 
@@ -433,7 +445,7 @@ BEGIN
                     ENDIF
                 ELSE:
                     -- Invalid axis (shouldn't happen)
-                    LOG_INFO('JOG_TICK: Invalid axis index: ' + I_TO_S(i))
+                    WRITE('JOG_TICK: Invalid axis index: ' + I_TO_S(i), CR)
             ENDSELECT
         ENDIF
     ENDFOR

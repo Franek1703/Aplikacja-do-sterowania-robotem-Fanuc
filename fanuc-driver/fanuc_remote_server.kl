@@ -17,18 +17,31 @@ VAR
     keep_conn:          BOOLEAN
     uframe_str:         STRING[1]
     tool_str:           STRING[1]
-    
--- Global state variables for tool/user/coord selection
+
+    -- Global state variables for tool/user/coord selection
     g_tool_num:         INTEGER
     g_uframe_num:       INTEGER
     g_coord_type:       INTEGER  -- 0=WORLD, 1=USER, 2=TOOL
-    
+
+    -- Global jogging state variables
+    jog_active:         ARRAY[6] OF BOOLEAN
+    jog_dir:            ARRAY[6] OF BOOLEAN
+    jog_speed:          INTEGER
+    jog_step_lin:       REAL
+    jog_step_rot:       REAL
+    jog_interval:       INTEGER
+    jog_pr:             XYZWPR
+    multi_axis:         BOOLEAN
+    active_axest:       INTEGER
+
+    -- Time in ms condition handlera
+    cont_timer:         INTEGER
+
 CONST
     SERVER_TAG = 8
     PORT_NUMBER = 18735
     UFRAMENUM = 8
     TOOLNUM = 8
-
 
 -- Include routines
 %INCLUDE fanuc_remote_context
@@ -37,70 +50,46 @@ CONST
 %INCLUDE fanuc_remote_jog
 %INCLUDE fanuc_remote_cmd
 
--- Jog tick task declaration
-ROUTINE JOG_TICK_TASK
-VAR
-    start_time: INTEGER
-    end_time: INTEGER
-    delay_time: INTEGER
-    interval: INTEGER
-BEGIN
-    -- Default interval in milliseconds
-    interval = jog_interval
-    
-    WHILE TRUE DO
-        -- Record start time
-        start_time = GETTIME(0)
-        
-        -- Execute one tick of jogging
-        JOG_TICK
-        
-        -- Calculate elapsed time
-        end_time = GETTIME(0)
-        delay_time = interval - (end_time - start_time)
-        
-        -- Sleep until next interval (ensuring a minimum of 1ms delay)
-        IF delay_time < 1 THEN
-            delay_time = 1
-        ENDIF
-        DELAY delay_time
-    ENDWHILE
-END JOG_TICK_TASK
-
 BEGIN -- Begin main program
     -- clear screen
     TP_CLS
     WRITE('FANUC_REMOTE SERVER started.', CR)
 
     -- Initialize global state variables
-    g_tool_num = TOOLNUM
+    g_tool_num   = TOOLNUM
     g_uframe_num = UFRAMENUM
-    g_coord_type = 0  -- Default to WORLD coordinates
-    
+    g_coord_type = 0  -- Default to WORLD
+
     -- Initialize jog module
     JOG_INIT
-    
+
     -- set userframe and toolframe
-    -- !!!TO BE DOCUMENTED!!!
     SET_VAR(entry, '*SYSTEM*', '$MNUFRAMENUM[1]', g_uframe_num, status)
-    SET_VAR(entry, '*SYSTEM*', '$MNUTOOLNUM[1]', g_tool_num, status)
-    
-    -- Start jog tick task
-    CONNECT TIMER[1] TO JOG_TICK_TASK
-    SET_CYCLES(TIMER[1], 0) -- Run continuously
-    SET_TIMER_TYPE(TIMER[1], 2) -- Semi-adaptive task
-    RUN_TIMER(TIMER[1], jog_interval) -- Start with jog interval
+    SET_VAR(entry, '*SYSTEM*', '$MNUTOOLNUM[1]',  g_tool_num,   status)
 
     -- update $UFRAME and $UTOOL
     CNV_INT_STR(UFRAMENUM, 1, 0, uframe_str)
-    CNV_INT_STR(TOOLNUM, 1, 0, tool_str)
+    CNV_INT_STR(TOOLNUM,   1, 0, tool_str)
     GET_VAR(entry, '*SYSTEM*', '$MNUFRAME[1, ' + uframe_str + ']', $GROUP[1].$UFRAME, status)
-    GET_VAR(entry, '*SYSTEM*', '$MNUTOOL[1, ' + tool_str + ']', $GROUP[1].$UTOOL, status)
-    
+    GET_VAR(entry, '*SYSTEM*', '$MNUTOOL[1, '  + tool_str   + ']', $GROUP[1].$UTOOL,  status)
+
+    -- === Jog "tick" via CONNECT TIMER + CONDITION handler ===
+    cont_timer = 0
+    CONNECT TIMER TO cont_timer       -- licznik rośnie co $SCR.$COND_TIME ms :contentReference[oaicite:1]{index=1}
+
+    CONDITION[10]:
+        WHEN cont_timer >= jog_interval DO
+            JOG_TICK
+            cont_timer = 0
+            ENABLE CONDITION[10]      -- po wyzwoleniu handler jest wyłączony; ponownie go włączamy :contentReference[oaicite:2]{index=2}
+    ENDCONDITION
+    ENABLE CONDITION[10]
+
+    -- === Główna pętla serwera ===
     WHILE TRUE DO
         -- open
         OPEN_COMM(comm_file, SERVER_TAG, PORT_NUMBER)
-        
+
         keep_conn = TRUE
         WHILE keep_conn DO
             READ comm_file(cmd)
@@ -117,7 +106,7 @@ BEGIN -- Begin main program
                 ENDIF
             ENDIF
         ENDWHILE
-        
+
         -- disconnect
         CLOSE_COMM(comm_file, SERVER_TAG)
     ENDWHILE -- main listening loop

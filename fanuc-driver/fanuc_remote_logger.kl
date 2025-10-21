@@ -16,15 +16,39 @@ VAR
     cmd:                STRING[254]
     resp:               STRING[254]
     keep_conn:          BOOLEAN
-    
+    uframe_str:         STRING[1]
+    tool_str:           STRING[1]
+
+    -- Global state variables for tool/user/coord selection
+    g_tool_num:         INTEGER
+    g_uframe_num:       INTEGER
+    g_coord_type:       INTEGER  -- 0=WORLD, 1=USER, 2=TOOL
+
+    -- Global jogging state variables
+    jog_active:         ARRAY[6] OF BOOLEAN
+    jog_dir:            ARRAY[6] OF BOOLEAN
+    jog_speed:          INTEGER
+    jog_step_lin:       REAL
+    jog_step_rot:       REAL
+    jog_interval:       INTEGER
+    jog_pr:             XYZWPR
+    multi_axis:         BOOLEAN
+    active_axest:       INTEGER
+
+    -- Time in ms condition handlera
+    cont_timer:         INTEGER
+
 CONST
     SERVER_TAG = 7
     PORT_NUMBER = 18736
-
+    UFRAMENUM = 8
+    TOOLNUM = 8
 
 -- Include routines
+%INCLUDE fanuc_remote_context
 %INCLUDE fanuc_remote_utils
 %INCLUDE fanuc_remote_comm
+%INCLUDE fanuc_remote_jog
 %INCLUDE fanuc_remote_cmd
 
 BEGIN -- Begin main program
