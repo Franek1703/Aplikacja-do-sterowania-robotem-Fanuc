@@ -20,45 +20,50 @@ def main():
     robot_ip = "192.168.56.8"  # Replace with your robot's IP address
     ftp = RobotFTP(
         host=robot_ip,
-        user="anonymous",  # Replace with your username if needed
-        password=""        # Replace with your password if needed
+        user="FZ",  # Replace with your username if needed
+        password="FANUC"        # Replace with your password if needed
     )
+    device = "mc:"
     
     try:
         # Connect to the robot's FTP server
         print(f"Connecting to FTP server at {robot_ip}...")
         ftp.connect()
         print("Connected!")
-        
-        # Get the current working directory
+
+        # Get all root folders
+        ftp.change_directory(" ")
+        pwd = ftp.get_pwd()
+        print(f"\nDirectory changed successfully to {pwd}")
+
+        print("\nListing root directories:")
+        root_dirs = ftp.list_files("", "*", "ALL", change_dir=False)
+        for file_info in root_dirs:
+            if file_info.is_dir:
+                print(f"  Directory: {file_info.name:<20} (modified: {file_info.modify_time})")
+            else:
+                print(f"  File: {file_info.name:<20} ({file_info.size:>6} bytes, modified: {file_info.modify_time})")
+
+        # Create a new test directory
         pwd = ftp.get_pwd()
         print(f"\nCurrent directory: {pwd}")
-        
-        # List files in the MD: device
-        print("\nListing files on MD: device:")
-        files = ftp.list_files("MD:", "*", "ALL")
-        for file in files[:10]:  # Show first 10 files to avoid cluttering output
-            print(f"  - {file}")
-        if len(files) > 10:
-            print(f"  ... and {len(files) - 10} more files")
-        
-        # Create a new directory for our test
-        test_dir = "TEST_DIR"
+        test_dir = f"{device}\\TEST_DIR"
+
         print(f"\nCreating directory: {test_dir}")
         try:
             ftp.create_directory(test_dir)
             print(f"Created directory: {test_dir}")
         except Exception as e:
             print(f"Note: {e} (Directory might already exist)")
-        
+
         # Change to the test directory
         print(f"\nChanging to directory: {test_dir}")
         ftp.change_directory(test_dir)
-        
+
         # Get the current directory again to confirm
         pwd = ftp.get_pwd()
         print(f"Current directory: {pwd}")
-        
+
         # Create a simple TP program
         tp_program_content = """
 /PROG  TEST_PROG
@@ -88,24 +93,20 @@ CONTROL_CODE    = 00000000 00000000;
 /POS
 /END
 """
-        
+
         # Write the program to the FTP server
         print("\nCreating a test TP program...")
-        ftp.write_text_file("", "TEST_PROG.TP", tp_program_content)
+        ftp.write_text_file(device=test_dir, filename="TEST_PROG.TP", content=tp_program_content)
         print("Created TEST_PROG.TP")
         
         # List files in the current directory
         print("\nListing files in the test directory:")
-        test_files = ftp.list_files("", "*", "ALL")
-        for file in test_files:
-            print(f"  - {file}")
-            
-            # Get file size
-            try:
-                size = ftp.get_file_size(file)
-                print(f"    Size: {size} bytes")
-            except Exception:
-                print(f"    Size: Unknown")
+        test_files = ftp.list_files(test_dir, "*", "ALL")
+        for file_info in test_files:
+            if file_info.is_dir:
+                print(f"  Directory: {file_info.name:<20} (modified: {file_info.modify_time})")
+            else:
+                print(f"  File: {file_info.name:<20} ({file_info.size:>6} bytes, modified: {file_info.modify_time})")
         
         # Rename the file
         print("\nRenaming TEST_PROG.TP to TEST_PROG_RENAMED.TP")
@@ -118,7 +119,7 @@ CONTROL_CODE    = 00000000 00000000;
         # Read the renamed file
         print("\nReading the renamed file:")
         try:
-            content = ftp.read_file("", "TEST_PROG_RENAMED.TP")
+            content = ftp.read_file(test_dir, "TEST_PROG_RENAMED.TP")
             # Print first few lines
             lines = content.split('\n')
             print(f"First 5 lines of the file:")
@@ -148,7 +149,7 @@ CONTROL_CODE    = 00000000 00000000;
             print("Removed test file")
         except Exception as e:
             print(f"Failed to remove file: {e}")
-        
+
         # Go back to root directory
         print("\nGoing back to root directory")
         ftp.change_directory("/")

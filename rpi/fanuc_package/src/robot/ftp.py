@@ -15,6 +15,35 @@ from io import StringIO, BytesIO
 logger = logging.getLogger(__name__)
 
 
+class RobotFileInfo:
+    """Data model for file information from FTP listing."""
+    
+    def __init__(self, name: str, size: int, modify_time: str, is_dir: bool, permissions: str):
+        """Initialize the file info.
+        
+        Args:
+            name: Name of the file
+            size: Size in bytes
+            modify_time: Modification time string
+            is_dir: Whether this is a directory
+            permissions: Permission string from FTP listing
+        """
+        self.name = name
+        self.size = size
+        self.modify_time = modify_time
+        self.is_dir = is_dir
+        self.permissions = permissions
+    
+    def __str__(self) -> str:
+        """String representation of the file info."""
+        type_str = "Directory" if self.is_dir else "File"
+        return f"{type_str}: {self.name} ({self.size} bytes, modified: {self.modify_time})"
+    
+    def __repr__(self) -> str:
+        """Detailed representation of the file info."""
+        return f"RobotFileInfo(name='{self.name}', size={self.size}, modify_time='{self.modify_time}', is_dir={self.is_dir}, permissions='{self.permissions}')"
+
+
 class RobotFTPError(Exception):
     """Base exception for RobotFTP errors."""
     pass
@@ -86,55 +115,101 @@ class RobotFTP:
         if not self.ftp or not self.ftp.sock:
             raise RobotFTPError("Not connected to FTP server. Call connect() first.")
     
-    def list_files(self, device: str = "MD:", pattern: str = "*", types: str = "ALL") -> List[str]:
+    def list_files(self, device: str = "MD:", pattern: str = "*", types: str = "ALL", change_dir: bool = True) -> List[RobotFileInfo]:
         """List files on the robot's FTP server.
         
         Args:
             device: Device to list files from (e.g., "MD:", "UD1:"), defaults to "MD:".
             pattern: File pattern to match, defaults to "*".
             types: Type of files to list ("TP", "KAREL", or "ALL"), defaults to "ALL".
+            change_dir: Whether to change to the specified directory before listing.
             
         Returns:
-            A list of filenames.
+            A list of RobotFileInfo objects containing file details.
             
         Raises:
             RobotFTPError: If listing fails.
         """
         self._ensure_connected()
         
-        # Make sure device has a colon at the end
-        if not device.endswith(':'):
-            device = f"{device}:"
-        
         try:
-            # Change to the requested device
-            self.ftp.cwd(device)
+            # Change to the requested device if needed
+            if change_dir:
+                self.ftp.cwd(device)
+                logger.info(f"Successfully changed to directory: {device}")
             
-            # Get the raw file listing
+            # Get the raw file listing using binary mode
             file_list = []
-            self.ftp.retrlines("LIST", file_list.append)
+            try:
+                # Use a binary buffer to collect the data
+                buffer = BytesIO()
+                self.ftp.retrbinary('LIST', buffer.write)
+                buffer.seek(0)
+                raw_data = buffer.getvalue()
+                
+                # Try different encodings to decode the entire listing
+                decoded_data = None
+                for encoding in ['cp1252', 'iso-8859-1', 'utf-8', 'shift-jis']:
+                    try:
+                        decoded_data = raw_data.decode(encoding)
+                        logger.debug(f"Successfully decoded using {encoding}")
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                
+                if decoded_data is None:
+                    # If all encodings fail, use replace mode
+                    decoded_data = raw_data.decode('cp1252', errors='replace')
+                    logger.warning("Using fallback encoding with 'replace' mode")
+                
+                # Split into lines and clean up
+                file_list = [line.strip() for line in decoded_data.splitlines() if line.strip()]
+                logger.debug(f"Successfully listed {len(file_list)} files")
+                
+            except Exception as e:
+                logger.error(f"Error during directory listing: {e}")
+                raise RobotFTPError(f"Failed to list directory: {e}")
             
             # Process the file listing
             result = []
             for line in file_list:
-                # Example line: "-rw-r--r-- 1 user group 12345 Jan 1 12:00 PROGRAM.TP"
-                parts = line.split()
-                if len(parts) < 9:  # Typical FTP LIST format has at least 9 parts
-                    continue
-                
-                filename = parts[8]  # Filename is usually the 9th element
-                
-                # Check if it matches the requested pattern
-                if not self._match_pattern(filename, pattern):
-                    continue
-                
-                # Filter by file type if specified
-                if types != "ALL":
-                    ext = os.path.splitext(filename)[1].upper()
-                    if ext in self.EXTENSION_TO_TYPE and self.EXTENSION_TO_TYPE[ext] != types:
+                try:
+                    # Example line: "drw-rw-rw- 1 noone nogroup 512 oct 23 2025 test_dir"
+                    parts = line.split(None, 8)  # Split into at most 9 parts
+                    if len(parts) < 9:
                         continue
-                
-                result.append(filename)
+                    
+                    permissions = parts[0]
+                    size = int(parts[4])
+                    # Combine month, day, year for modify time
+                    modify_time = f"{parts[5]} {parts[6]} {parts[7]}"
+                    name = parts[8].strip()
+                    is_dir = permissions.startswith('d')
+                    
+                    # Create file info object
+                    file_info = RobotFileInfo(
+                        name=name,
+                        size=size,
+                        modify_time=modify_time,
+                        is_dir=is_dir,
+                        permissions=permissions
+                    )
+                    
+                    # Check if it matches the requested pattern
+                    if not self._match_pattern(name, pattern):
+                        continue
+                    
+                    # Filter by file type if specified
+                    if types != "ALL" and not is_dir:
+                        ext = os.path.splitext(name)[1].upper()
+                        if ext in self.EXTENSION_TO_TYPE and self.EXTENSION_TO_TYPE[ext] != types:
+                            continue
+                    
+                    result.append(file_info)
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to parse line '{line}': {e}")
+                    continue
             
             logger.info(f"Listed {len(result)} files on {device}")
             return result
@@ -189,11 +264,11 @@ class RobotFTP:
         self._ensure_connected()
         
         # Make sure device has a colon at the end
-        if not device.endswith(':'):
-            device = f"{device}:"
+        # if not device.endswith(':'):
+        #     device = f"{device}:"
         
         # Build the full path
-        filepath = f"{device}/{filename}"
+        filepath = fr"{device}\{filename}"
         
         try:
             # Retrieve the file content
@@ -388,24 +463,22 @@ class RobotFTP:
         """
         self._ensure_connected()
         
-        # Make sure device has a colon at the end
-        if not device.endswith(':'):
-            device = f"{device}:"
-        
         # Build the full path
-        filepath = f"{device}/{filename}"
+        filepath = fr"{device}\{filename}"
         
         try:
-            # Convert the string content to a StringIO object
-            content_io = StringIO(content)
+            # Convert the content to bytes and create a BytesIO object
+            # Note: Fanuc robots typically expect ASCII or Latin-1 encoding
+            content_bytes = content.encode('latin-1', errors='replace')
+            buffer = BytesIO(content_bytes)
             
-            # Use STOR command with ASCII/TEXT mode
-            self.ftp.storlines(f"STOR {filepath}", content_io)
+            # Use STOR command in binary mode
+            self.ftp.storbinary(f"STOR {filepath}", buffer)
             
             logger.info(f"Wrote text file {filepath}")
             return True
             
-        except (error_perm, error_temp) as e:
+        except (error_perm, error_temp, UnicodeError) as e:
             logger.error(f"Failed to write text file {filepath}: {e}")
             raise RobotFTPError(f"Failed to write text file {filepath}: {e}")
     
@@ -431,30 +504,7 @@ class RobotFTP:
             logger.error(f"Failed to change directory to {path}: {e}")
             raise RobotFTPError(f"Failed to change directory to {path}: {e}")
     
-    def get_file_size(self, filepath: str) -> int:
-        """Get the size of a file on the FTP server.
-        
-        Args:
-            filepath: Path of the file.
-            
-        Returns:
-            Size of the file in bytes.
-            
-        Raises:
-            RobotFTPError: If getting file size fails.
-        """
-        self._ensure_connected()
-        
-        try:
-            size = self.ftp.size(filepath)
-            if size is None:
-                logger.warning(f"Could not determine size of {filepath}")
-                return -1
-            logger.info(f"Size of {filepath}: {size} bytes")
-            return size
-        except (error_perm, error_temp) as e:
-            logger.error(f"Failed to get size of file {filepath}: {e}")
-            raise RobotFTPError(f"Failed to get size of file {filepath}: {e}")
+
     
     def download_binary_file(self, remote_path: str, local_path: str) -> bool:
         """Download a binary file from the FTP server to a local path.
