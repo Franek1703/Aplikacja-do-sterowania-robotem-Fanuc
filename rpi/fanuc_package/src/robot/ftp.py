@@ -5,14 +5,33 @@ This module provides functionality to connect, list and read files from a Fanuc 
 It also supports file and directory operations like creating, removing, and renaming files and directories.
 """
 
+from enum import Enum
 from ftplib import FTP, error_perm, error_temp
 import logging
 import os
-from typing import List, Optional, BinaryIO, Union
+from typing import List, Optional, BinaryIO, Union, TYPE_CHECKING
 from io import StringIO, BytesIO
+
+if TYPE_CHECKING:
+    from robot.alarm_parser import Alarm
 
 # Setup logging
 logger = logging.getLogger(__name__)
+
+
+class AlarmLogType(Enum):
+    """
+    FANUC alarm log file types with their exact .LS filenames.
+    Used only for selecting which error log file to read.
+    Parsing will be implemented later.
+    """
+    ALL  = "ERRALL.LS"   # Combined log of all errors – DEFAULT
+    SYS  = "ERRSYS.LS"   # System controller errors
+    MOT  = "ERRMOT.LS"   # Servo/motion-related errors
+    COMM = "ERRCOMM.LS"  # Communication errors (Ethernet, TCP/IP, etc.)
+    APP  = "ERRAPP.LS"   # Application-related errors
+    ACT  = "ERRACT.LS"   # Actual/current errors
+    EXT  = "ERREXT.LS"   # Extended alarm log
 
 
 class RobotFileInfo:
@@ -504,7 +523,35 @@ class RobotFTP:
             logger.error(f"Failed to change directory to {path}: {e}")
             raise RobotFTPError(f"Failed to change directory to {path}: {e}")
     
-
+    def read_alarm_logs(self, kind: AlarmLogType = AlarmLogType.ALL, device: str = "MD:") -> List["Alarm"]:
+        """Read and parse alarm log files from the robot's FTP server.
+        
+        Args:
+            kind: Type of alarm log to read (defaults to AlarmLogType.ALL for ERRALL.LS).
+            device: Device to read from (e.g., "MD:", "UD1:"), defaults to "MD:".
+            
+        Returns:
+            A list of parsed Alarm objects.
+            
+        Raises:
+            RobotFTPError: If reading the alarm log fails.
+        """
+        self._ensure_connected()
+        
+        # Import here to avoid circular dependency
+        from robot.alarm_parser import AlarmLogParser
+        
+        # Get the filename from the enum value
+        filename = kind.value
+        
+        # Use the existing read_file method to read the alarm log
+        logger.info(f"Reading alarm log: {filename} from {device}")
+        log_content = self.read_file(device=device, filename=filename)
+        
+        # Parse and return the alarms
+        alarms = AlarmLogParser.parse_log(log_content)
+        logger.info(f"Parsed {len(alarms)} alarms from {filename}")
+        return alarms
     
     def download_binary_file(self, remote_path: str, local_path: str) -> bool:
         """Download a binary file from the FTP server to a local path.
