@@ -37,31 +37,91 @@
 --ROUTINE MOVE_TO_POS(POS: XYZWPR; status: INTEGER);
 
 
--- Execute motion to a position
+-- Execute motion to a position (cartesian jog step)
 ROUTINE MOVE_TO_POS(POS: XYZWPR; status: INTEGER)
 VAR
-    -- PR register number for jog motion
-    PR_NUM: INTEGER
-    entry: INTEGER
-    grp_num: INTEGER
+    PR_NUM     : INTEGER
+    prog_index : INTEGER
+
+    -- For POS2JOINT / CHECK_EPOS
+    ref_jnt    : JOINTPOS
+    out_jnt    : JOINTPOS
+    cart_pos   : POSITION
+    wcfg       : CONFIG
+    ext        : ARRAY[6] OF REAL
+
+    chk        : XYZWPR
+    uf, ut, ct : INTEGER
 BEGIN
-    PR_NUM = 81 -- Use the same register as other fanuc_remote operations
-    grp_num = 1
-    
-    -- Set the position register
-    SET_POS_REG(PR_NUM, POS, status)
+    PR_NUM = 81   -- keep PR[81] for cartesian jog
+
+    -- Build POSITION from XYZWPR for kinematics/checks
+    cart_pos = POS(POS.x, POS.y, POS.z, POS.w, POS.p, POS.r, POS.config_data)
+
+    -- Context (useful in logs)
+    GET_VAR(0, '*SYSTEM*', '$MNUFRAMENUM[1]', uf, status)
+    GET_VAR(0, '*SYSTEM*', '$MNUTOOLNUM[1]',  ut, status)
+    ct = g_coord_type
+    WRITE('CTX: UFRAME=', uf, ' UTOOL=', ut, ' COORD=', ct, CR)
+
+    -- 1) Motion parameters first
+    IF jog_speed < 1 THEN
+        jog_speed = 1
+    ENDIF
+    SET_INT_REG(81, jog_speed, status)         -- velocity [%]
     IF status <> 0 THEN
+        WRITE('MOVE_TO_POS: SET R[81] failed: ', status, CR)
         RETURN
     ENDIF
-    
-    -- Set motion parameters
-    SET_INT_REG(81, jog_speed, status) -- speed
-    SET_INT_REG(82, 100, status)       -- acceleration
-    SET_INT_REG(83, 100, status)       -- CNT value for blending
-    
-    -- Execute motion (using the same TP program as other fanuc_remote operations)
-    CALL_PROG('FANUC_REMOTE_MOVEL', status)
+    SET_INT_REG(82, 100, status)               -- acceleration [%]
+    IF status <> 0 THEN
+        WRITE('MOVE_TO_POS: SET R[82] failed: ', status, CR)
+        RETURN
+    ENDIF
+    SET_INT_REG(83, 100, status)               -- CNT (blend)
+    IF status <> 0 THEN
+        WRITE('MOVE_TO_POS: SET R[83] failed: ', status, CR)
+        RETURN
+    ENDIF
+
+    -- 2) Inverse kinematics pre-check:
+    --    POS2JOINT(ref_jnt, in_pos, uframe, utool, config_ref, wjnt_cfg, ext_ang, out_jnt, status)
+    ref_jnt = CURJPOS(0, 0)
+    POS2JOINT(ref_jnt, cart_pos, $UFRAME, $UTOOL, 0, wcfg, ext, out_jnt, status)
+    IF status <> 0 THEN
+        WRITE('MOVE_TO_POS: POS2JOINT failed status=', status,
+              ' POS=(', POS.x, ',', POS.y, ',', POS.z, ',', POS.w, ',', POS.p, ',', POS.r, ')', CR)
+        RETURN
+    ENDIF
+
+    -- 3) Write PR after R[81..83] are set
+    SET_POS_REG(PR_NUM, POS, status)
+    IF status <> 0 THEN
+        WRITE('MOVE_TO_POS: SET_POS_REG failed: ', status, CR)
+        RETURN
+    ENDIF
+
+    -- 4) Readback for visibility
+    chk = GET_POS_REG(PR_NUM, status)
+    IF status <> 0 THEN
+        WRITE('MOVE_TO_POS: GET_POS_REG failed: ', status, CR)
+        RETURN
+    ENDIF
+    WRITE('PR[', PR_NUM, ']=(', chk.x, ',', chk.y, ',', chk.z, ',', chk.w, ',', chk.p, ',', chk.r, ')', CR)
+
+    -- 5) Optional reachability check (warn only)
+    CHECK_EPOS(cart_pos, $UFRAME, $UTOOL, status)
+    IF status <> 0 THEN
+        WRITE('MOVE_TO_POS: CHECK_EPOS failed: ', status, CR)
+        -- do not RETURN; POS2JOINT already validated a solution
+    ENDIF
+
+    -- 6) Execute TP motion
+    WRITE('Execute move to position', CR)
+    CALL_PROGLIN('FANUC_REMOTE_MOVEL', 1, prog_index, FALSE)
 END MOVE_TO_POS
+
+
 
 -- Get transform from tool frame to world frame
 ROUTINE GET_TFRM_WLD: XYZWPR
@@ -129,9 +189,9 @@ BEGIN
     ENDFOR
     
     -- Default settings
-    jog_speed = 25 -- 25% speed
-    jog_step_lin = 0.25 -- 0.25mm per tick for XYZ
-    jog_step_rot = 0.5  -- 0.5deg per tick for WPR
+    jog_speed = 75 -- 75% speed
+    jog_step_lin = 2.0 -- 2mm per tick for XYZ
+    jog_step_rot = 1.0  -- 1deg per tick for WPR
     jog_interval = 30   -- 30ms between ticks
     multi_axis = FALSE -- Only one axis at a time (simpler mode)
     active_axest = 0
@@ -188,6 +248,7 @@ BEGIN
         resp = '1:ERR BUSY'
         RETURN(resp)
     ENDIF
+    WRITE('JOG_START called for axis ', I_TO_S(axis_idx), ' direction ', B_TO_S(direction), CR)
     
     -- Check if we're allowing multi-axis and if not, check if another axis is active
     IF (NOT multi_axis) AND (active_axest > 0) AND (NOT jog_active[axis_idx]) THEN
@@ -227,7 +288,6 @@ BEGIN
         cur_posn = CURPOS(0, 0)
         jog_pr = POS(cur_posn.x, cur_posn.y, cur_posn.z, cur_posn.w, cur_posn.p, cur_posn.r, cur_posn.config_data)
     ENDIF
-    
     -- Log the start of jogging
     WRITE('JOG_START: Axis ', I_TO_S(axis_idx), ' Direction ', B_TO_S(direction), 
           ' Speed ', I_TO_S(jog_speed), ' Step ', R_TO_S(step_lin), '/', R_TO_S(step_rot), CR)
@@ -342,6 +402,7 @@ VAR
     c   : STRING[1]
 BEGIN
     -- Convert axis name to index (1=X, 2=Y, 3=Z, 4=W, 5=P, 6=R)
+    WRITE('Converting axis name ', axis_name, ' to index', CR)
     c = SUB_STR(axis_name, 1, 1)
 
     IF (c = 'X') OR (c = 'x') THEN
@@ -369,7 +430,7 @@ BEGIN
             ENDIF
         ENDIF
     ENDIF
-
+    WRITE('Axis name ', axis_name, ' converted to index ', I_TO_S(idx), CR)
     RETURN(idx)
 END AXIS2IDX
 
@@ -386,7 +447,7 @@ BEGIN
     IF active_axest = 0 THEN
         RETURN
     ENDIF
-    
+    WRITE('JOG_TICK', CR)
     -- Apply kinematic context (tool, user frame, coord system)
     APL_KIN_CTX
     
@@ -404,6 +465,7 @@ BEGIN
     -- Apply deltas for active axes
     FOR i = 1 TO 6 DO
         IF jog_active[i] THEN
+        WRITE('JOG_TICK: Axis ', I_TO_S(i), ' is active. Direction: ', B_TO_S(jog_dir[i]), CR)
             SELECT i OF
                 CASE (1): -- X
                     IF jog_dir[i] THEN

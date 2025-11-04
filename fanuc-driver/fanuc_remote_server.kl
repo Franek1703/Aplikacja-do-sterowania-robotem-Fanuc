@@ -15,8 +15,8 @@ VAR
     cmd:                STRING[254]
     resp:               STRING[254]
     keep_conn:          BOOLEAN
-    uframe_str:         STRING[1]
-    tool_str:           STRING[1]
+    uframe_str:         STRING[3]
+    tool_str:           STRING[3]
 
     -- Global state variables for tool/user/coord selection
     g_tool_num:         INTEGER
@@ -36,6 +36,8 @@ VAR
 
     -- Time in ms condition handlera
     cont_timer:         INTEGER
+    jog_tick_due:      BOOLEAN
+    jog_in_progr:   BOOLEAN
 
 CONST
     SERVER_TAG = 8
@@ -54,6 +56,8 @@ BEGIN -- Begin main program
     -- clear screen
     TP_CLS
     WRITE('FANUC_REMOTE SERVER started.', CR)
+    jog_tick_due = FALSE
+    jog_in_progr = FALSE
 
     -- Initialize global state variables
     g_tool_num   = TOOLNUM
@@ -79,9 +83,9 @@ BEGIN -- Begin main program
 
     CONDITION[10]:
         WHEN cont_timer >= jog_interval DO
-            JOG_TICK
             cont_timer = 0
-            ENABLE CONDITION[10]      -- po wyzwoleniu handler jest wyłączony; ponownie go włączamy :contentReference[oaicite:2]{index=2}
+            jog_tick_due = TRUE    -- tylko sygnał
+            ENABLE CONDITION[10] 
     ENDCONDITION
     ENABLE CONDITION[10]
 
@@ -92,21 +96,27 @@ BEGIN -- Begin main program
 
         keep_conn = TRUE
         WHILE keep_conn DO
-            READ comm_file(cmd)
-            IF UNINIT(cmd) THEN
-                keep_conn = FALSE
-            ELSE
+            cmd = ''                          -- always init
+            READ comm_file(cmd::0)            -- don't block program
+            IF STR_LEN(cmd) > 0 THEN
+                WRITE('Received cmd: ', cmd, CR)
                 keep_conn = HANDLE_CMD(cmd, resp)
-
-                IF keep_conn THEN
-                    WRITE comm_file (resp)
-                ELSE
-                    WRITE comm_file (resp)
-                    READ comm_file(cmd::0)
+                WRITE comm_file(resp)
+                IF NOT keep_conn THEN
+                    READ comm_file(cmd::0)    -- flush
                 ENDIF
             ENDIF
-        ENDWHILE
+            IF jog_tick_due AND (NOT jog_in_progr) THEN
+                jog_in_progr = TRUE
+                JOG_TICK
+                jog_in_progr = FALSE
+                jog_tick_due = FALSE
+                WRITE('TICK', CR)
+            ENDIF
 
+            DELAY 20      -- lekkie „oddechy” (ok. 20 ms), żeby nie zajechać CPU
+        ENDWHILE
+        WRITE('Client disconnected.', CR)
         -- disconnect
         CLOSE_COMM(comm_file, SERVER_TAG)
     ENDWHILE -- main listening loop

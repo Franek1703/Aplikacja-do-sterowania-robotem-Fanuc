@@ -13,11 +13,13 @@ BEGIN
         IF SUB_STR(cmd, i, 1) = ':' THEN
             sub_cmd = SUB_STR(cmd, 1, i-1)
             args = SUB_STR(cmd, i+1, STR_LEN(cmd)-i)
+            WRITE('Split cmd: ', sub_cmd, ' args: ', args, CR)
             RETURN
         ENDIF
     ENDFOR
     -- No colon found, entire string is command
     sub_cmd = cmd
+    WRITE('No colon found in cmd: ', cmd, CR)
 END SPLIT_CMD
 
 ROUTINE LOG_INFO(msg: STRING)
@@ -630,16 +632,20 @@ VAR
     tool_num:        INTEGER
     status:          INTEGER
     entry:           INTEGER
+    prog_index:     INTEGER
 BEGIN
     -- Parse command
     -- Format: set_tool <tool_num>
     SPLIT_CMD(cmd, sub_cmd, args)
+    WRITE('SET_TOOL command received: ', cmd, CR)
     
     -- Convert to integer
     CNV_STR_INT(args, tool_num)
+    WRITE('Tool number to set: ', tool_num, CR)
     
     -- Update global state variable
     g_tool_num = tool_num
+    WRITE('Global tool number updated to: ', g_tool_num, CR)
     
     -- Set R[84] for TP program
     SET_INT_REG(84, tool_num, status)
@@ -648,8 +654,9 @@ BEGIN
     ENDIF
     
     -- Run TP program to set UTOOL_NUM
-    CALL_PROG('SET_UTOOL_TP', status)
-    IF status <> 0 THEN
+    CALL_PROG('SET_UTOOL_TP', prog_index)
+    IF prog_index < 0 THEN
+        WRITE('Failed to run SET_UTOOL_TP, prog_index: ', prog_index, CR)
         RETURN('1:cannot-run-set-utool-tp')
     ENDIF
     
@@ -678,16 +685,20 @@ VAR
     user_num:        INTEGER
     status:          INTEGER
     entry:           INTEGER
+    prog_index:     INTEGER
 BEGIN
     -- Parse command
     -- Format: set_user <user_num>
     SPLIT_CMD(cmd, sub_cmd, args)
+    WRITE('SET_USER command received: ', cmd, CR)
     
     -- Convert to integer
     CNV_STR_INT(args, user_num)
+    WRITE('User frame number to set: ', user_num, CR)
     
     -- Update global state variable
     g_uframe_num = user_num
+    WRITE('Global user frame number updated to: ', g_uframe_num, CR)
     
     -- Set R[85] for TP program
     SET_INT_REG(85, user_num, status)
@@ -696,8 +707,9 @@ BEGIN
     ENDIF
     
     -- Run TP program to set UFRAME_NUM
-    CALL_PROG('SET_UFRAME_TP', status)
-    IF status <> 0 THEN
+    CALL_PROG('SET_UFRAME_TP', prog_index)
+    IF prog_index < 0 THEN
+        WRITE('Failed to run SET_UFRAME_TP, prog_index: ', prog_index, CR)
         RETURN('1:cannot-run-set-uframe-tp')
     ENDIF
     
@@ -729,16 +741,21 @@ BEGIN
     -- Parse command
     -- Format: set_coord <WORLD|USER|TOOL>
     SPLIT_CMD(cmd, sub_cmd, args)
+    WRITE('SET_COORD command received: ', cmd, CR)
+    WRITE('Coordinate system requested: ', args, CR)
     
     -- Convert string to coord type
     IF args = 'WORLD' THEN
         g_coord_type = 0
+        WRITE('Setting coordinate system to WORLD', CR)
     ELSE 
     	IF args = 'USER' THEN
     		 g_coord_type = 1
+             WRITE('Setting coordinate system to USER', CR)
     	ELSE 
     		IF args = 'TOOL' THEN
         		g_coord_type = 2
+                WRITE('Setting coordinate system to TOOL', CR)
     		ELSE
         		RETURN('1:invalid-coord-type')
     		ENDIF
@@ -768,8 +785,10 @@ VAR
     resp:            STRING[254]
     val_str:         STRING[10]
 BEGIN
+    WRITE('GET_TOOL command received', CR)
     -- Convert tool number to string
     CNV_INT_STR(g_tool_num, 0, 0, val_str)
+    WRITE('Current tool number: ', g_tool_num, CR)
     
     -- Format response
     resp = '0:' + val_str
@@ -791,8 +810,10 @@ VAR
     resp:            STRING[254]
     val_str:         STRING[10]
 BEGIN
+    WRITE('GET_USER command received', CR)
     -- Convert user frame number to string
     CNV_INT_STR(g_uframe_num, 0, 0, val_str)
+    WRITE('Current user frame number: ', g_uframe_num, CR)
     
     -- Format response
     resp = '0:' + val_str
@@ -813,14 +834,19 @@ ROUTINE GET_COORD(cmd: STRING): STRING
 VAR
     resp:            STRING[254]
 BEGIN
+    WRITE('GET_COORD command received', CR)
+    WRITE('Current coordinate type: ', g_coord_type, CR)
     -- Convert coord type to string
     SELECT g_coord_type OF
         CASE (0):
             resp = '0:WORLD'
+            WRITE('Coordinate system is WORLD', CR)
         CASE (1):
             resp = '0:USER'
+            WRITE('Coordinate system is USER', CR)
         CASE (2):
             resp = '0:TOOL'
+            WRITE('Coordinate system is TOOL', CR)
         ELSE:
             resp = '1:unknown-coord-type'
     ENDSELECT
@@ -828,42 +854,42 @@ BEGIN
     RETURN(resp)
 END GET_COORD
 
--- Helper function to split arguments by space
+-- Helper function to split arguments by colon
 ROUTINE SPLIT_ARGS(args: STRING; args_array: ARRAY OF STRING): INTEGER
 VAR
     i: INTEGER
-    j: INTEGER
     start_idx: INTEGER
     len: INTEGER
     arg_count: INTEGER
+    seg_len: INTEGER
 BEGIN
     len = STR_LEN(args)
+    IF len = 0 THEN
+        RETURN(0)
+    ENDIF
+
     start_idx = 1
     arg_count = 0
-    j = 1
-    
+
     FOR i = 1 TO len DO
-        IF (SUB_STR(args, i, 1) = ' ') OR (i = len) THEN
-            -- End of argument found
-            IF i = len AND SUB_STR(args, i, 1) <> ' ' THEN
-                -- Include the last character if it's not a space
-                args_array[arg_count+1] = SUB_STR(args, start_idx, j)
+        IF SUB_STR(args, i, 1) = ':' THEN
+            seg_len = i - start_idx
+            IF seg_len > 0 THEN
+                args_array[arg_count + 1] = SUB_STR(args, start_idx, seg_len)
                 arg_count = arg_count + 1
-            ELSE
-            	IF j > 1 THEN
-                	args_array[arg_count+1] = SUB_STR(args, start_idx, j-1)
-                	arg_count = arg_count + 1
-            	ENDIF
             ENDIF
-            
-            -- Reset for next argument
             start_idx = i + 1
-            j = 1
         ELSE
-            j = j + 1
+            IF i = len THEN
+                seg_len = i - start_idx + 1
+                IF seg_len > 0 THEN
+                    args_array[arg_count + 1] = SUB_STR(args, start_idx, seg_len)
+                    arg_count = arg_count + 1
+                ENDIF
+            ENDIF
         ENDIF
     ENDFOR
-    
+    WRITE('Split args count: ', arg_count, CR)
     RETURN(arg_count)
 END SPLIT_ARGS
 
@@ -892,6 +918,8 @@ VAR
     has_speed:       BOOLEAN
     has_step:        BOOLEAN
 BEGIN
+    WRITE('JOG_START_H command received', CR)
+    WRITE('Command details: ', cmd, CR)
     -- Parse command
     -- Format: JOG_START <AXIS> <DIR> [SPEED] [STEP]
     SPLIT_CMD(cmd, sub_cmd, args)
@@ -907,6 +935,7 @@ BEGIN
     -- Parse axis
     axis_name = args_array[1]
     axis_idx = AXIS2IDX(axis_name)
+    WRITE('Parsed axis: ', axis_name, ' idx: ', axis_idx, CR)
     IF axis_idx = 0 THEN
         RETURN('1:ERR INVALID_AXIS')
     ENDIF
@@ -929,6 +958,7 @@ BEGIN
         CNV_STR_INT(args_array[3], speed)
         has_speed = TRUE
     ENDIF
+    WRITE('Parsed speed: ', speed, ' has_speed: ', has_speed, CR)
     
     -- Parse optional step
     has_step = FALSE
@@ -936,6 +966,7 @@ BEGIN
         CNV_STR_REAL(args_array[4], step)
         has_step = TRUE
     ENDIF
+    WRITE('Parsed step: ', step, ' has_step: ', has_step, CR)
     
     -- Call JOG_START with parsed parameters
     IF has_speed AND has_step THEN
@@ -966,6 +997,8 @@ VAR
     axis_name:       STRING[1]
     axis_idx:        INTEGER
 BEGIN
+    WRITE('JOG_STOP_H command received', CR)
+    WRITE('Command details: ', cmd, CR)
     -- Parse command
     -- Format: JOG_STOP <AXIS>
     SPLIT_CMD(cmd, sub_cmd, args)

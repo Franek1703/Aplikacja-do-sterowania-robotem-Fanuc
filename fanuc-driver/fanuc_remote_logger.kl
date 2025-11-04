@@ -16,8 +16,8 @@ VAR
     cmd:                STRING[254]
     resp:               STRING[254]
     keep_conn:          BOOLEAN
-    uframe_str:         STRING[1]
-    tool_str:           STRING[1]
+    uframe_str:         STRING[3]
+    tool_str:           STRING[3]
 
     -- Global state variables for tool/user/coord selection
     g_tool_num:         INTEGER
