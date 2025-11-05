@@ -38,31 +38,15 @@
 
 
 -- Execute motion to a position (cartesian jog step)
-ROUTINE MOVE_TO_POS(POS: XYZWPR; status: INTEGER)
+ROUTINE MOVE_TO_POS(POS1: XYZWPR; status: INTEGER)
 VAR
     PR_NUM     : INTEGER
     prog_index : INTEGER
 
-    -- For POS2JOINT / CHECK_EPOS
-    ref_jnt    : JOINTPOS
-    out_jnt    : JOINTPOS
-    cart_pos   : POSITION
-    wcfg       : CONFIG
-    ext        : ARRAY[6] OF REAL
-
     chk        : XYZWPR
-    uf, ut, ct : INTEGER
 BEGIN
     PR_NUM = 81   -- keep PR[81] for cartesian jog
 
-    -- Build POSITION from XYZWPR for kinematics/checks
-    cart_pos = POS(POS.x, POS.y, POS.z, POS.w, POS.p, POS.r, POS.config_data)
-
-    -- Context (useful in logs)
-    GET_VAR(0, '*SYSTEM*', '$MNUFRAMENUM[1]', uf, status)
-    GET_VAR(0, '*SYSTEM*', '$MNUTOOLNUM[1]',  ut, status)
-    ct = g_coord_type
-    WRITE('CTX: UFRAME=', uf, ' UTOOL=', ut, ' COORD=', ct, CR)
 
     -- 1) Motion parameters first
     IF jog_speed < 1 THEN
@@ -84,18 +68,8 @@ BEGIN
         RETURN
     ENDIF
 
-    -- 2) Inverse kinematics pre-check:
-    --    POS2JOINT(ref_jnt, in_pos, uframe, utool, config_ref, wjnt_cfg, ext_ang, out_jnt, status)
-    ref_jnt = CURJPOS(0, 0)
-    POS2JOINT(ref_jnt, cart_pos, $UFRAME, $UTOOL, 0, wcfg, ext, out_jnt, status)
-    IF status <> 0 THEN
-        WRITE('MOVE_TO_POS: POS2JOINT failed status=', status,
-              ' POS=(', POS.x, ',', POS.y, ',', POS.z, ',', POS.w, ',', POS.p, ',', POS.r, ')', CR)
-        RETURN
-    ENDIF
-
     -- 3) Write PR after R[81..83] are set
-    SET_POS_REG(PR_NUM, POS, status)
+    SET_POS_REG(PR_NUM, POS1, status)
     IF status <> 0 THEN
         WRITE('MOVE_TO_POS: SET_POS_REG failed: ', status, CR)
         RETURN
@@ -108,13 +82,6 @@ BEGIN
         RETURN
     ENDIF
     WRITE('PR[', PR_NUM, ']=(', chk.x, ',', chk.y, ',', chk.z, ',', chk.w, ',', chk.p, ',', chk.r, ')', CR)
-
-    -- 5) Optional reachability check (warn only)
-    CHECK_EPOS(cart_pos, $UFRAME, $UTOOL, status)
-    IF status <> 0 THEN
-        WRITE('MOVE_TO_POS: CHECK_EPOS failed: ', status, CR)
-        -- do not RETURN; POS2JOINT already validated a solution
-    ENDIF
 
     -- 6) Execute TP motion
     WRITE('Execute move to position', CR)
@@ -308,6 +275,8 @@ BEGIN
     new_pos.w = jog_pr.w + delta.w
     new_pos.p = jog_pr.p + delta.p
     new_pos.r = jog_pr.r + delta.r
+
+    new_pos.config_data = jog_pr.config_data
     
     jog_pr = new_pos
 END APPLY_WINC

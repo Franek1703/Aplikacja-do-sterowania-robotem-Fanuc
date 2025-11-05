@@ -89,23 +89,39 @@ BEGIN -- Begin main program
     ENDCONDITION
     ENABLE CONDITION[10]
 
-    -- === Główna pętla serwera ===
+    -- === Main server loop ===
     WHILE TRUE DO
-        -- open
         OPEN_COMM(comm_file, SERVER_TAG, PORT_NUMBER)
-
         keep_conn = TRUE
+
         WHILE keep_conn DO
-            cmd = ''                          -- always init
-            READ comm_file(cmd::0)            -- don't block program
+            cmd = ''                          
+            READ comm_file(cmd::0)            -- non-blocking read
+            status = IO_STATUS(comm_file)
+
+            -- === Socket disconnected or invalid ===
+            -- IF (status <> 0) THEN
+            --     WRITE('Socket read error: ', status, CR)
+            --     keep_conn = FALSE
+            -- ELSE
+            -- === Process incoming command ===
             IF STR_LEN(cmd) > 0 THEN
                 WRITE('Received cmd: ', cmd, CR)
                 keep_conn = HANDLE_CMD(cmd, resp)
                 WRITE comm_file(resp)
+                status = IO_STATUS(comm_file)
+                IF (status <> 0) THEN
+                    WRITE('Socket write error: ', status, CR)
+                    keep_conn = FALSE
+                ENDIF
+
                 IF NOT keep_conn THEN
-                    READ comm_file(cmd::0)    -- flush
+                    READ comm_file(cmd::0)  -- flush buffer
                 ENDIF
             ENDIF
+            -- ENDIF
+
+            -- === Jog tick handling ===
             IF jog_tick_due AND (NOT jog_in_progr) THEN
                 jog_in_progr = TRUE
                 JOG_TICK
@@ -114,12 +130,13 @@ BEGIN -- Begin main program
                 WRITE('TICK', CR)
             ENDIF
 
-            DELAY 20      -- lekkie „oddechy” (ok. 20 ms), żeby nie zajechać CPU
+            DELAY 20      -- ~20ms idle delay
         ENDWHILE
+
         WRITE('Client disconnected.', CR)
-        -- disconnect
         CLOSE_COMM(comm_file, SERVER_TAG)
-    ENDWHILE -- main listening loop
+    ENDWHILE
+
 
     WRITE('FANUC_REMOTE SERVER finished.', CR)
 END FANUC_SVR
