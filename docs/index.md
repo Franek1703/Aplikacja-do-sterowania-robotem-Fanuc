@@ -20,7 +20,17 @@ Welcome to the FanucPy documentation. This guide provides comprehensive informat
 
 ## Component Documentation
 
-- [**KAREL/TP Driver**](../fanuc-driver/README.md): Documentation for the server-side KAREL and TP programs that run on the robot controller.
+### FANUC Driver (Server-Side)
+
+- [**Driver Overview**](driver_overview.md): Visual system overview with diagrams showing how commands flow through the driver, file organization, and design decisions.
+
+- [**Driver Architecture**](driver_architecture.md): Detailed technical documentation about the FANUC driver architecture, including server implementation, socket communication, command processing, and available functions.
+
+- [**Command Reference**](command_reference.md): Quick reference guide for all available TCP/IP commands with examples and error codes.
+
+- [**KAREL/TP Driver README**](../fanuc-driver/README.md): Overview of the server-side KAREL and TP programs that run on the robot controller.
+
+### Python Client Library
 
 - [**Python Library**](../rpi/fanuc_package/src/robot/README.md): API reference for the Python client library.
 
