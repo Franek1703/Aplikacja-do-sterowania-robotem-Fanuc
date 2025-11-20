@@ -32,21 +32,21 @@ class InteractiveRobotControl:
             print(f"Failed to connect: {e}")
             self.exit_program()
         
-        # Mapping of keys to functions
+        # Update the key mapping with proper jog parameters
         self.key_mapping = {
             # Jogging controls - X, Y, Z, W, P, R axes
-            'q': {'func': self.robot.jog_start, 'args': ["X", "+"], 'desc': "Jog X+"},
-            'a': {'func': self.robot.jog_start, 'args': ["X", "-"], 'desc': "Jog X-"},
-            'w': {'func': self.robot.jog_start, 'args': ["Y", "+"], 'desc': "Jog Y+"},
-            's': {'func': self.robot.jog_start, 'args': ["Y", "-"], 'desc': "Jog Y-"},
-            'e': {'func': self.robot.jog_start, 'args': ["Z", "+"], 'desc': "Jog Z+"},
-            'd': {'func': self.robot.jog_start, 'args': ["Z", "-"], 'desc': "Jog Z-"},
-            'r': {'func': self.robot.jog_start, 'args': ["W", "+"], 'desc': "Jog W+"},
-            'f': {'func': self.robot.jog_start, 'args': ["W", "-"], 'desc': "Jog W-"},
-            't': {'func': self.robot.jog_start, 'args': ["P", "+"], 'desc': "Jog P+"},
-            'g': {'func': self.robot.jog_start, 'args': ["P", "-"], 'desc': "Jog P-"},
-            'y': {'func': self.robot.jog_start, 'args': ["R", "+"], 'desc': "Jog R+"},
-            'h': {'func': self.robot.jog_start, 'args': ["R", "-"], 'desc': "Jog R-"},
+            'q': {'func': self.robot.jog_start, 'args': ["X", "+", 25, 0.25], 'desc': "Jog X+"},
+            'a': {'func': self.robot.jog_start, 'args': ["X", "-", 25, 0.25], 'desc': "Jog X-"},
+            'w': {'func': self.robot.jog_start, 'args': ["Y", "+", 25, 0.25], 'desc': "Jog Y+"},
+            's': {'func': self.robot.jog_start, 'args': ["Y", "-", 25, 0.25], 'desc': "Jog Y-"},
+            'e': {'func': self.robot.jog_start, 'args': ["Z", "+", 25, 0.25], 'desc': "Jog Z+"},
+            'd': {'func': self.robot.jog_start, 'args': ["Z", "-", 25, 0.25], 'desc': "Jog Z-"},
+            'r': {'func': self.robot.jog_start, 'args': ["W", "+", 25, 0.5], 'desc': "Jog W+"},
+            'f': {'func': self.robot.jog_start, 'args': ["W", "-", 25, 0.5], 'desc': "Jog W-"},
+            't': {'func': self.robot.jog_start, 'args': ["P", "+", 25, 0.5], 'desc': "Jog P+"},
+            'g': {'func': self.robot.jog_start, 'args': ["P", "-", 25, 0.5], 'desc': "Jog P-"},
+            'y': {'func': self.robot.jog_start, 'args': ["R", "+", 25, 0.5], 'desc': "Jog R+"},
+            'h': {'func': self.robot.jog_start, 'args': ["R", "-", 25, 0.5], 'desc': "Jog R-"},
             
             # Jog stop
             'space': {'func': self.robot.jog_stop_all, 'args': [], 'desc': "Stop all jogging"},
@@ -326,6 +326,12 @@ class InteractiveRobotControl:
     
     def update_status(self):
         """Thread function to update status periodically."""
+        last_tool_msg = ""
+        last_user_msg = ""
+        last_coord_msg = ""
+        last_joint_pos = None
+        last_cart_pos = None
+        last_connected_state = False
         while self.running:
             if not self.connected:
                 time.sleep(1)
@@ -333,41 +339,50 @@ class InteractiveRobotControl:
             
             try:
                 clear_screen()
-                print("=" * 50)
-                print(" INTERACTIVE FANUC ROBOT CONTROL ")
-                print("=" * 50)
-                print(f"Connected: {'Yes' if self.connected else 'No'}")
+                connected_state = self.connected
+                if connected_state != last_connected_state:
+                    last_connected_state = connected_state
+                    print(f"Connected: {'Yes' if connected_state else 'No'}")
                 
                 if self.connected:
                     try:
                         joint_pos = self.robot.get_curjpos()
                         cart_pos = self.robot.get_curpos()
                         
-                        print("\nCURRENT POSITION:")
-                        print(f"Joints: {joint_pos}")
-                        print(f"Cartesian: {cart_pos}")
+                        if (last_joint_pos != joint_pos or
+                            last_cart_pos != cart_pos):
+                            last_joint_pos = joint_pos
+                            last_cart_pos = cart_pos
+                            print("\nCURRENT POSITION:")
+                            print(f"Joints: {joint_pos}")
+                            print(f"Cartesian: {cart_pos}")
                         
                         # Try to get frames info
                         try:
                             _, tool_msg = self.robot.get_tool()
                             _, user_msg = self.robot.get_user()
                             _, coord_msg = self.robot.get_coord()
-                            
-                            print("\nFRAMES:")
-                            print(f"Tool: {tool_msg} | User: {user_msg} | Coord: {coord_msg}")
+                            if (tool_msg != last_tool_msg or
+                                user_msg != last_user_msg or
+                                coord_msg != last_coord_msg):
+                                last_tool_msg = tool_msg
+                                last_user_msg = user_msg
+                                last_coord_msg = coord_msg
+                                print("\nFRAMES:")
+                                print(f"Tool: {tool_msg} | User: {user_msg} | Coord: {coord_msg}")
                         except:
                             pass
                     except:
                         print("\nERROR: Could not read robot state")
                 
-                print("\nCONTROLS:")
-                print("Movement: [Q/A] X±  [W/S] Y±  [E/D] Z±  [R/F] W±  [T/G] P±  [Y/H] R±")
-                print("Gripper:  [O] Open  [C] Close")
-                print("Frames:   [1] Set Tool  [2] Set User  [3] Set Coord  [4] Get Frames")
-                print("Position: [V] Show Position  [B] Show Power")
-                print("Motion:   [M] Move Joint  [N] Move Pose  [I] Increment Joint  [P] Increment Pose")
-                print("I/O:      [7] Toggle RDO  [8] Toggle DOUT  [0] Call Program")
-                print("Control:  [Z] Connect/Disconnect  [SPACE] Stop Jog  [ESC] Exit")
+                # print("\nCONTROLS:")
+                # print("Movement: [Q/A] X±  [W/S] Y±  [E/D] Z±  [R/F] W±  [T/G] P±  [Y/H] R±")
+                # print("Gripper:  [O] Open  [C] Close")
+                # print("Frames:   [1] Set Tool  [2] Set User  [3] Set Coord  [4] Get Frames")
+                # print("Position: [V] Show Position  [B] Show Power")
+                # print("Motion:   [M] Move Joint  [N] Move Pose  [I] Increment Joint  [P] Increment Pose")
+                # print("I/O:      [7] Toggle RDO  [8] Toggle DOUT  [0] Call Program")
+                # print("Control:  [Z] Connect/Disconnect  [SPACE] Stop Jog  [ESC] Exit")
                 
             except Exception as e:
                 print(f"Status error: {e}")

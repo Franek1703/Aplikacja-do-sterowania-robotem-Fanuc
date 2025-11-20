@@ -13,6 +13,8 @@ This architecture enables sophisticated robot control applications to run on ext
 
 ## Robot Controller Component
 
+For detailed technical documentation about the FANUC driver architecture, socket communication, and command processing pipeline, see [**Driver Architecture Documentation**](driver_architecture.md) and [**Command Reference**](command_reference.md).
+
 ### Core Server Components
 
 The KAREL programs that make up the controller-side implementation:

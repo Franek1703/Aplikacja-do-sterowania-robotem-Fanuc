@@ -232,19 +232,30 @@ python cli_jog.py --host 192.168.1.10 stop-all
 
 ## Documentation
 
-[Complete Documentation Index](../../docs/index.md)
+### Python Library Documentation
 
-### Technical Documentation
+- [**FanucPy Documentation Index**](docs/index.md): Complete Python package documentation
+- [**Python API Reference**](docs/python_api_reference.md): Complete API for all Robot class methods
+- [**Connection Guide**](docs/connection_guide.md): Step-by-step connection setup and troubleshooting
+- [**FTP Access**](docs/ftp_access.md): Program file access via FTP
+- [**Extended FTP**](docs/extended_ftp.md): Advanced FTP operations
 
-- [System Architecture Documentation](../../docs/architecture.md): Overall system design and communication flow
-- [Tool, User Frame, and Coordinate System Documentation](../../docs/frames_and_coords.md): Details on coordinate frame management
-- [Jogging Functionality Documentation](../../docs/jogging.md): iPendant-like continuous motion control
-- [Command-Line Tools Documentation](../../docs/cli_tools.md): Using the included CLI utilities
+### System Documentation
+
+- [**Complete Documentation Index**](../../docs/index.md): Main documentation hub
+- [**System Architecture**](../../docs/architecture.md): Overall system design and communication flow
+- [**Driver Architecture**](../../docs/driver_architecture.md): Detailed FANUC driver technical documentation
+- [**Command Reference**](../../docs/command_reference.md): TCP/IP command reference with examples
+
+### Feature Documentation
+
+- [**Tool, User Frame, and Coordinate System**](../../docs/frames_and_coords.md): Coordinate frame management
+- [**Jogging Functionality**](../../docs/jogging.md): iPendant-like continuous motion control
+- [**Command-Line Tools**](../../docs/cli_tools.md): CLI utilities documentation
 
 ### Component Documentation
 
-- [KAREL/TP Driver Documentation](../../fanuc-driver/README.md): Robot controller side implementation
-- [Python Library Documentation](src/robot/README.md): Python API reference
+- [**KAREL/TP Driver**](../../fanuc-driver/README.md): Robot controller side implementation
 
 ## RobotApp
 The `RobotApp` class facilitates modularity and plug-and-produce functionality. Check the following example apps:

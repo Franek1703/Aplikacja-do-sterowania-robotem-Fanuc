@@ -343,7 +343,7 @@ class Robot:
         Returns:
             tuple(int, str): Response code and response message.
         """
-        cmd = f"set_tool {tool_num}"
+        cmd = f"set_tool:{tool_num}"
         return self.send_cmd(cmd, continue_on_error=continue_on_error)
     
     def set_user(
@@ -360,7 +360,7 @@ class Robot:
         Returns:
             tuple(int, str): Response code and response message.
         """
-        cmd = f"set_user {user_num}"
+        cmd = f"set_user:{user_num}"
         return self.send_cmd(cmd, continue_on_error=continue_on_error)
     
     def set_coord(
@@ -379,7 +379,7 @@ class Robot:
         """
         if coord_type not in ("WORLD", "USER", "TOOL"):
             raise ValueError("Coordinate system must be WORLD, USER, or TOOL")
-        cmd = f"set_coord {coord_type}"
+        cmd = f"set_coord:{coord_type}"
         return self.send_cmd(cmd, continue_on_error=continue_on_error)
     
     def get_tool(
@@ -457,12 +457,12 @@ class Robot:
         if direction not in ("+", "-"):
             raise ValueError("Direction must be + or -")
         
-        cmd = f"jog_start {axis} {direction}"
+        cmd = f"jog_start:{axis}:{direction}"
         
         if speed is not None:
-            cmd += f" {speed}"
+            cmd += f":{speed}"
             if step is not None:
-                cmd += f" {step}"
+                cmd += f":{step}"
         
         return self.send_cmd(cmd, continue_on_error=continue_on_error)
     
@@ -483,7 +483,7 @@ class Robot:
         if axis not in ("X", "Y", "Z", "W", "P", "R"):
             raise ValueError("Axis must be X, Y, Z, W, P, or R")
             
-        cmd = f"jog_stop {axis}"
+        cmd = f"jog_stop:{axis}"
         return self.send_cmd(cmd, continue_on_error=continue_on_error)
     
     def jog_stop_all(

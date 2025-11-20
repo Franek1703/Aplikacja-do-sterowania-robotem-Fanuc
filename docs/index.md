@@ -32,7 +32,15 @@ Welcome to the FanucPy documentation. This guide provides comprehensive informat
 
 ### Python Client Library
 
-- [**Python Library**](../rpi/fanuc_package/src/robot/README.md): API reference for the Python client library.
+- [**FanucPy Documentation Index**](../rpi/fanuc_package/docs/index.md): Complete Python package documentation index.
+
+- [**Python API Reference**](../rpi/fanuc_package/docs/python_api_reference.md): Complete API documentation for all Robot class methods, parameters, and communication protocols.
+
+- [**Connection Guide**](../rpi/fanuc_package/docs/connection_guide.md): Step-by-step guide to connecting to FANUC robots, including network setup and troubleshooting.
+
+- [**FTP Access Documentation**](../rpi/fanuc_package/docs/ftp_access.md): Guide to accessing and reading program files via FTP.
+
+- [**Extended FTP Operations**](../rpi/fanuc_package/docs/extended_ftp.md): Advanced FTP operations including file writing and directory management.
 
 ## Example Applications
 
