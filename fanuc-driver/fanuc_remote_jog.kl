@@ -1,0 +1,504 @@
+-- Description:         Handles jogging operations
+--                      similar to iPendant controls
+
+-- Global jogging state variables
+--VAR
+    -- Active status for each axis (X,Y,Z,W,P,R) - TRUE if jogging
+  --  jog_active: ARRAY[6] OF BOOLEAN
+    -- Direction for each axis (TRUE = positive, FALSE = negative)
+  --  jog_dir: ARRAY[6] OF BOOLEAN
+    -- Speed percentage (1-100)
+   -- jog_speed: INTEGER
+    -- Step size in mm for linear axes (X,Y,Z)
+  --  jog_step_lin: REAL
+    -- Step size in degrees for rotational axes (W,P,R)
+  --  jog_step_rot: REAL
+    -- Interval between jog ticks in milliseconds
+ --   jog_interval: INTEGER
+    -- Position register for working position
+  --  jog_pr: XYZWPR
+    -- Flag to allow multi-axis jogging
+  --  multi_axis: BOOLEAN
+    -- Count of currently active axes
+  --  active_axest: INTEGER
+    
+    
+-- External variables
+--COMMON VAR g_coord_type: INTEGER FROM fanuc_remote_server
+-- Forward declarations for external routines
+
+-- Forward declarations for internal routines
+--ROUTINE APPLY_WINC(delta: XYZWPR);
+--ROUTINE APL_INC_USR(delta: XYZWPR);
+--ROUTINE APL_INC_TL(delta: XYZWPR);
+--ROUTINE TRANS_DELTA(delta: XYZWPR; transform: XYZWPR): XYZWPR;
+--ROUTINE GET_UFRM_WLD(): XYZWPR;
+--ROUTINE GET_TFRM_WLD(): XYZWPR;
+--ROUTINE MOVE_TO_POS(POS: XYZWPR; status: INTEGER);
+
+
+-- Execute motion to a position (cartesian jog step)
+ROUTINE MOVE_TO_POS(POS1: XYZWPR; status: INTEGER)
+VAR
+    PR_NUM     : INTEGER
+    prog_index : INTEGER
+
+    chk        : XYZWPR
+BEGIN
+    PR_NUM = 81   -- keep PR[81] for cartesian jog
+
+
+    -- 1) Motion parameters first
+    IF jog_speed < 1 THEN
+        jog_speed = 1
+    ENDIF
+    SET_INT_REG(81, jog_speed, status)         -- velocity [%]
+    IF status <> 0 THEN
+        WRITE('MOVE_TO_POS: SET R[81] failed: ', status, CR)
+        RETURN
+    ENDIF
+    SET_INT_REG(82, 100, status)               -- acceleration [%]
+    IF status <> 0 THEN
+        WRITE('MOVE_TO_POS: SET R[82] failed: ', status, CR)
+        RETURN
+    ENDIF
+    SET_INT_REG(83, 100, status)               -- CNT (blend)
+    IF status <> 0 THEN
+        WRITE('MOVE_TO_POS: SET R[83] failed: ', status, CR)
+        RETURN
+    ENDIF
+
+    -- 3) Write PR after R[81..83] are set
+    SET_POS_REG(PR_NUM, POS1, status)
+    IF status <> 0 THEN
+        WRITE('MOVE_TO_POS: SET_POS_REG failed: ', status, CR)
+        RETURN
+    ENDIF
+
+    -- 4) Readback for visibility
+    chk = GET_POS_REG(PR_NUM, status)
+    IF status <> 0 THEN
+        WRITE('MOVE_TO_POS: GET_POS_REG failed: ', status, CR)
+        RETURN
+    ENDIF
+    WRITE('PR[', PR_NUM, ']=(', chk.x, ',', chk.y, ',', chk.z, ',', chk.w, ',', chk.p, ',', chk.r, ')', CR)
+
+    -- 6) Execute TP motion
+    WRITE('Execute move to position', CR)
+    CALL_PROGLIN('FANUC_REMOTE_MOVEL', 1, prog_index, FALSE)
+END MOVE_TO_POS
+
+
+
+-- Get transform from tool frame to world frame
+ROUTINE GET_TFRM_WLD: XYZWPR
+VAR
+    transform: XYZWPR
+BEGIN
+    -- Get the transformation matrix for the current tool frame
+    -- This would typically involve getting the current UTOOL data
+    
+    -- Placeholder for actual implementation
+    transform.x = 0
+    transform.y = 0
+    transform.z = 0
+    transform.w = 0
+    transform.p = 0
+    transform.r = 0
+    
+    RETURN(transform)
+END GET_TFRM_WLD
+
+-- Get transform from user frame to world frame
+ROUTINE GET_UFRM_WLD: XYZWPR
+VAR
+    transform: XYZWPR
+BEGIN
+    -- Get the transformation matrix for the current user frame
+    -- This would typically involve getting the current UFRAME data
+    
+    -- Placeholder for actual implementation
+    transform.x = 0
+    transform.y = 0
+    transform.z = 0
+    transform.w = 0
+    transform.p = 0
+    transform.r = 0
+    
+    RETURN(transform)
+END GET_UFRM_WLD
+
+
+-- Helper routine to transform a delta between coordinate systems
+ROUTINE TRANS_DELTA(delta: XYZWPR; transform: XYZWPR): XYZWPR
+VAR
+    result: XYZWPR
+BEGIN
+    -- Simplified transformation - in actual implementation would use matrices
+    -- This is a placeholder for the actual transformation logic
+    
+    -- For now we'll just pass through the delta (this needs proper implementation)
+    result = delta
+    
+    RETURN(result)
+END TRANS_DELTA
+
+
+-- Initialize jog module
+ROUTINE JOG_INIT
+VAR
+    i: INTEGER
+BEGIN
+    -- Initialize jog state
+    FOR i = 1 TO 6 DO
+        jog_active[i] = FALSE
+        jog_dir[i] = TRUE -- Default to positive direction
+    ENDFOR
+    
+    -- Default settings
+    jog_speed = 75 -- 75% speed
+    jog_step_lin = 2.0 -- 2mm per tick for XYZ
+    jog_step_rot = 1.0  -- 1deg per tick for WPR
+    jog_interval = 30   -- 30ms between ticks
+    multi_axis = FALSE -- Only one axis at a time (simpler mode)
+    active_axest = 0
+    
+    WRITE('JOG module initialized with default settings', CR)
+END JOG_INIT
+
+-- Check if robot is busy with other motion
+ROUTINE ROBOT_BUSY: BOOLEAN
+VAR
+    busy: BOOLEAN
+BEGIN
+    -- Check robot motion status
+    -- This is a placeholder - actual implementation would check robot state
+    busy = FALSE
+    
+    RETURN(busy)
+END ROBOT_BUSY
+
+-- Helper functions for converting types to strings (for logging)
+ROUTINE I_TO_S(val: INTEGER): STRING
+VAR
+    s: STRING[10]
+BEGIN
+    CNV_INT_STR(val, 0, 0, s)
+    RETURN(s)
+END I_TO_S
+
+ROUTINE R_TO_S(val: REAL): STRING
+VAR
+    s: STRING[10]
+BEGIN
+    CNV_REAL_STR(val, 0, 3, s)
+    RETURN(s)
+END R_TO_S
+
+ROUTINE B_TO_S(val: BOOLEAN): STRING
+BEGIN
+    IF val THEN
+        RETURN('TRUE')
+    ELSE
+        RETURN('FALSE')
+    ENDIF
+END B_TO_S
+
+-- Start jogging an axis
+ROUTINE JOG_START(axis_idx: INTEGER; direction: BOOLEAN; speed: INTEGER; step_lin: REAL; step_rot: REAL): STRING
+VAR
+    resp: STRING[254]
+    cur_posn: XYZWPR
+BEGIN
+    -- Check if robot is busy or in fault
+    IF ROBOT_BUSY THEN
+        resp = '1:ERR BUSY'
+        RETURN(resp)
+    ENDIF
+    WRITE('JOG_START called for axis ', I_TO_S(axis_idx), ' direction ', B_TO_S(direction), CR)
+    
+    -- Check if we're allowing multi-axis and if not, check if another axis is active
+    IF (NOT multi_axis) AND (active_axest > 0) AND (NOT jog_active[axis_idx]) THEN
+        resp = '1:ERR AXIS_ACTIVE'
+        RETURN(resp)
+    ENDIF
+    
+    -- Update count of active axes
+    IF NOT jog_active[axis_idx] THEN
+        active_axest = active_axest + 1
+    ENDIF
+
+    -- Set jogging state for this axis
+    jog_active[axis_idx] = TRUE
+    jog_dir[axis_idx] = direction
+    
+    -- Update speed if provided
+    IF NOT UNINIT(speed) THEN
+        IF (speed < 1) OR (speed > 100) THEN
+            resp = '1:ERR OUT_OF_RANGE'
+            RETURN(resp)
+        ENDIF
+        jog_speed = speed
+    ENDIF
+    
+    -- Update step sizes if provided
+    IF NOT UNINIT(step_lin) THEN
+        jog_step_lin = step_lin
+    ENDIF
+    
+    IF NOT UNINIT(step_rot) THEN
+        jog_step_rot = step_rot
+    ENDIF
+    
+    -- Initialize working position to current position if this is the first active axis
+    IF active_axest = 1 THEN
+        cur_posn = CURPOS(0, 0)
+        jog_pr = POS(cur_posn.x, cur_posn.y, cur_posn.z, cur_posn.w, cur_posn.p, cur_posn.r, cur_posn.config_data)
+    ENDIF
+    -- Log the start of jogging
+    WRITE('JOG_START: Axis ', I_TO_S(axis_idx), ' Direction ', B_TO_S(direction), 
+          ' Speed ', I_TO_S(jog_speed), ' Step ', R_TO_S(step_lin), '/', R_TO_S(step_rot), CR)
+    
+    resp = '0:OK'
+    RETURN(resp)
+END JOG_START
+
+-- Apply a delta in world coordinates
+ROUTINE APPLY_WINC(delta: XYZWPR)
+VAR
+    new_pos: XYZWPR
+BEGIN
+    -- Add delta directly to the working position in world coordinates
+    new_pos.x = jog_pr.x + delta.x
+    new_pos.y = jog_pr.y + delta.y
+    new_pos.z = jog_pr.z + delta.z
+    new_pos.w = jog_pr.w + delta.w
+    new_pos.p = jog_pr.p + delta.p
+    new_pos.r = jog_pr.r + delta.r
+
+    new_pos.config_data = jog_pr.config_data
+    
+    jog_pr = new_pos
+END APPLY_WINC
+
+-- Apply a delta in tool coordinates
+ROUTINE APL_INC_TL(delta: XYZWPR)
+VAR
+    new_pos: XYZWPR
+    tool_world: XYZWPR
+    world_delta: XYZWPR
+BEGIN
+    -- Transform delta from tool frame to world frame
+    -- This is simplified - in actual implementation would use 
+    -- proper coordinate transformation based on active tool frame
+    
+    -- Get transform from tool frame to world
+    tool_world = GET_TFRM_WLD
+    
+    -- Apply transformation to delta
+    world_delta = TRANS_DELTA(delta, tool_world)
+    
+    -- Apply transformed delta to position
+    APPLY_WINC(world_delta)
+END APL_INC_TL
+
+
+-- Apply a delta in user coordinates
+ROUTINE APL_INC_USR(delta: XYZWPR)
+VAR
+    new_pos: XYZWPR
+    user_world: XYZWPR
+    world_delta: XYZWPR
+BEGIN
+    -- Transform delta from user frame to world frame
+    -- This is simplified - in actual implementation would use 
+    -- proper coordinate transformation based on active user frame
+    
+    -- Get transform from user frame to world
+    user_world = GET_UFRM_WLD
+    
+    -- Apply transformation to delta
+    world_delta = TRANS_DELTA(delta, user_world)
+    
+    -- Apply transformed delta to position
+    APPLY_WINC(world_delta)
+END APL_INC_USR
+
+
+-- Stop jogging an axis
+ROUTINE JOG_STOP(axis_idx: INTEGER): STRING
+VAR
+    resp: STRING[254]
+BEGIN
+    -- Check if the axis is active
+    IF jog_active[axis_idx] THEN
+        jog_active[axis_idx] = FALSE
+        active_axest = active_axest - 1
+        
+        WRITE('JOG_STOP: Axis ', I_TO_S(axis_idx), CR)
+        
+        resp = '0:OK'
+    ELSE
+        resp = '0:OK' -- Still return OK even if not active
+    ENDIF
+    
+    RETURN(resp)
+END JOG_STOP
+
+
+-- Stop all jogging
+ROUTINE JOG_STOP_ALL: STRING
+VAR
+    i: INTEGER
+    resp: STRING[254]
+BEGIN
+    FOR i = 1 TO 6 DO
+        jog_active[i] = FALSE
+    ENDFOR
+    
+    active_axest = 0
+    WRITE('JOG_STOP_ALL: All axes stopped', CR)
+    
+    resp = '0:OK'
+    RETURN(resp)
+END JOG_STOP_ALL
+
+
+-- Helper function for axis name to index conversion
+ROUTINE AXIS2IDX(axis_name: STRING): INTEGER
+VAR
+    idx: INTEGER
+    c   : STRING[1]
+BEGIN
+    -- Convert axis name to index (1=X, 2=Y, 3=Z, 4=W, 5=P, 6=R)
+    WRITE('Converting axis name ', axis_name, ' to index', CR)
+    c = SUB_STR(axis_name, 1, 1)
+
+    IF (c = 'X') OR (c = 'x') THEN
+        idx = 1
+    ELSE
+        IF (c = 'Y') OR (c = 'y') THEN
+            idx = 2
+        ELSE
+            IF (c = 'Z') OR (c = 'z') THEN
+                idx = 3
+            ELSE
+                IF (c = 'W') OR (c = 'w') THEN
+                    idx = 4
+                ELSE
+                    IF (c = 'P') OR (c = 'p') THEN
+                        idx = 5
+                    ELSE
+                        IF (c = 'R') OR (c = 'r') THEN
+                            idx = 6
+                        ELSE
+                            idx = 0  -- invalid axis
+                        ENDIF
+                    ENDIF
+                ENDIF
+            ENDIF
+        ENDIF
+    ENDIF
+    WRITE('Axis name ', axis_name, ' converted to index ', I_TO_S(idx), CR)
+    RETURN(idx)
+END AXIS2IDX
+
+
+-- Execute one tick of jog motion if any axes are active
+ROUTINE JOG_TICK
+VAR
+    i: INTEGER
+    delta: XYZWPR
+    speed_factor: REAL
+    status: INTEGER
+BEGIN
+    -- If no axes are active, do nothing
+    IF active_axest = 0 THEN
+        RETURN
+    ENDIF
+    WRITE('JOG_TICK', CR)
+    -- Apply kinematic context (tool, user frame, coord system)
+    APL_KIN_CTX
+    
+    -- Calculate speed factor (percentage of full speed)
+    speed_factor = jog_speed / 100.0
+    
+    -- Initialize delta to zeros
+    delta.x = 0.0
+    delta.y = 0.0
+    delta.z = 0.0
+    delta.w = 0.0
+    delta.p = 0.0
+    delta.r = 0.0
+    
+    -- Apply deltas for active axes
+    FOR i = 1 TO 6 DO
+        IF jog_active[i] THEN
+        WRITE('JOG_TICK: Axis ', I_TO_S(i), ' is active. Direction: ', B_TO_S(jog_dir[i]), CR)
+            SELECT i OF
+                CASE (1): -- X
+                    IF jog_dir[i] THEN
+                        delta.x = jog_step_lin * speed_factor
+                    ELSE
+                        delta.x = -jog_step_lin * speed_factor
+                    ENDIF
+                CASE (2): -- Y
+                    IF jog_dir[i] THEN
+                        delta.y = jog_step_lin * speed_factor
+                    ELSE
+                        delta.y = -jog_step_lin * speed_factor
+                    ENDIF
+                CASE(3): -- Z
+                    IF jog_dir[i] THEN
+                        delta.z = jog_step_lin * speed_factor
+                    ELSE
+                        delta.z = -jog_step_lin * speed_factor
+                    ENDIF
+                    
+                -- Rotational axes use angular step
+                CASE(4): -- W
+                    IF jog_dir[i] THEN
+                        delta.w = jog_step_rot * speed_factor
+                    ELSE
+                        delta.w = -jog_step_rot * speed_factor
+                    ENDIF
+                CASE(5): -- P
+                    IF jog_dir[i] THEN
+                        delta.p = jog_step_rot * speed_factor
+                    ELSE
+                        delta.p = -jog_step_rot * speed_factor
+                    ENDIF
+                CASE(6): -- R
+                    IF jog_dir[i] THEN
+                        delta.r = jog_step_rot * speed_factor
+                    ELSE
+                        delta.r = -jog_step_rot * speed_factor
+                    ENDIF
+                ELSE:
+                    -- Invalid axis (shouldn't happen)
+                    WRITE('JOG_TICK: Invalid axis index: ' + I_TO_S(i), CR)
+            ENDSELECT
+        ENDIF
+    ENDFOR
+    
+    -- Apply delta based on coordinate system
+    SELECT g_coord_type OF
+        CASE (0): -- WORLD
+            APPLY_WINC(delta)
+        CASE (1): -- USER
+            APL_INC_USR(delta)
+        CASE (2): -- TOOL
+            APL_INC_TL(delta)
+        ELSE:
+            -- Invalid coord type, use WORLD as default
+            APPLY_WINC(delta)
+    ENDSELECT
+    
+    -- Execute motion to new position
+    MOVE_TO_POS(jog_pr, status)
+    
+    -- Check for errors
+    IF status <> 0 THEN
+        WRITE('JOG_TICK: Motion error: ', I_TO_S(status), CR)
+    ENDIF
+END JOG_TICK

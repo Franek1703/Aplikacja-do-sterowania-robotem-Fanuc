@@ -1,0 +1,1178 @@
+-- Description:         Handles commands sent from
+--                      external program.
+
+ROUTINE SPLIT_CMD(cmd, sub_cmd, args: STRING)
+VAR
+    i:                  INTEGER
+BEGIN
+    -- Extract command name and arguments
+    sub_cmd = ''
+    args = ''
+    -- Find first colon
+    FOR i = 1 TO STR_LEN(cmd) DO
+        IF SUB_STR(cmd, i, 1) = ':' THEN
+            sub_cmd = SUB_STR(cmd, 1, i-1)
+            args = SUB_STR(cmd, i+1, STR_LEN(cmd)-i)
+            WRITE('Split cmd: ', sub_cmd, ' args: ', args, CR)
+            RETURN
+        ENDIF
+    ENDFOR
+    -- No colon found, entire string is command
+    sub_cmd = cmd
+    WRITE('No colon found in cmd: ', cmd, CR)
+END SPLIT_CMD
+
+ROUTINE LOG_INFO(msg: STRING)
+BEGIN
+    WRITE(msg, CR)
+END LOG_INFO
+
+ROUTINE GET_CURPOS(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Get current cartesian position of TCP.
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    resp:           STRING[254]
+    out:            STRING[254]
+    cpos:           XYZWPR
+BEGIN
+    cpos = CURPOS(0, 0)
+
+    CNV_REAL_STR(cpos.x, 8, 3, out)
+    resp = '0:x=' + out
+
+    CNV_REAL_STR(cpos.y, 8, 3, out)
+    resp = resp + ',y=' + out
+
+    CNV_REAL_STR(cpos.z, 8, 3, out)
+    resp = resp + ',z=' + out
+
+    CNV_REAL_STR(cpos.w, 8, 3, out)
+    resp = resp + ',w=' + out
+
+    CNV_REAL_STR(cpos.p, 8, 3, out)
+    resp = resp + ',p=' + out
+
+    CNV_REAL_STR(cpos.r, 8, 3, out)
+    resp = resp + ',r=' + out
+
+    RETURN(resp)
+END GET_CURPOS
+
+
+ROUTINE GET_CURJPOS(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Get current joint position of the TCP.
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    resp:           STRING[254]
+    out:            STRING[254]
+    jpos:           JOINTPOS
+    joint_vals:     ARRAY[9] OF REAL
+    status:         INTEGER
+    i:              INTEGER
+
+BEGIN
+    jpos = CURJPOS(0, 0)
+
+    CNV_JPOS_REL(jpos, joint_vals, status)
+    IF status <> 0 THEN
+        resp = '1:cannot-convert-joint-vals'
+        RETURN(resp)
+    ENDIF
+
+    resp = '0:'
+    FOR i=1 TO ARRAY_LEN(joint_vals) DO
+        IF UNINIT(joint_vals[i]) THEN
+            out='none'
+        ELSE
+            CNV_REAL_STR(joint_vals[i], 8, 3, out)
+        ENDIF
+        IF i=1 THEN
+            resp = resp + 'j=' + out
+        ELSE
+            resp = resp + ',j=' + out
+        ENDIF
+
+    ENDFOR
+
+    RETURN(resp)
+END GET_CURJPOS
+
+
+ROUTINE GET_INS_PWR(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Get instantaneous power consumption.
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    resp:           STRING[254]
+    status:         INTEGER
+    ins_pwr:        REAL
+
+BEGIN
+    GET_VAR(entry, '*SYSTEM*', '$PRO_CFG.$INS_PWR', ins_pwr, status)
+
+    IF status <> 0 THEN
+        resp = '1:cannot-get-ins_pwr'
+        RETURN(resp)
+    ENDIF
+
+    CNV_REAL_STR(ins_pwr, 6, 6, resp)
+    resp = '0:' + resp
+
+    RETURN(resp)
+END GET_INS_PWR
+
+
+ROUTINE MOVEJ(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Moves joints.
+-- cmd string should follow the below format:
+-- movej:vel_val:cnt_val:nj:J1:J2:J3:J4:J5:J6
+-- where:
+-- vel_val: abc (3 digits), e.g.: 002, 020, 100
+-- cnt_val: abc (3 digits), e.g.: 003, 030, 100
+-- nj: n (1 digit), e.g.: 6, 7
+-- J1: (18 chars), e.g.: +1234567890.09876543216
+-- J2 ... Jn are similar to J1
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    status:             INTEGER
+    vel_val:            INTEGER
+    acc_val:            INTEGER
+    cnt_val:            INTEGER
+    mtn_type:           INTEGER
+    nj:                 INTEGER
+    i:                  INTEGER
+    joint_vals:         ARRAY[9] OF REAL
+    jval:               REAL
+    jpos:               JOINTPOS6
+    out_pos:            POSITION
+    ext_ang:            ARRAY[6] OF REAL
+    wjnt_cfg:           CONFIG
+    start:              INTEGER
+    prog_index:         INTEGER
+    resp:               STRING[254]
+
+CONST
+    n_chars = 14
+BEGIN
+    start = 7
+
+    -- Get vel_val put it to R[81]
+    CNV_STR_INT(SUB_STR(cmd, start, 4), vel_val)
+    SET_INT_REG(81, vel_val, status)
+    IF status <> 0 THEN
+        resp = '1:R[81]-was-not-set'
+        WRITE('Error: ', status, CR)
+        RETURN(resp)
+    ENDIF
+    start = start + 4 + 1
+
+    -- Get acc_val and put it to R[82]
+    CNV_STR_INT(SUB_STR(cmd, start, 4), acc_val)
+    SET_INT_REG(82, acc_val, status)
+    IF status <> 0 THEN
+        resp = '1:R[82]-was-not-set'
+        WRITE('Error: ', status, CR)
+        RETURN(resp)
+    ENDIF
+    start = start + 4 + 1
+
+    -- Get CNT value and put it to R[83]
+    CNV_STR_INT(SUB_STR(cmd, start, 3), cnt_val)
+    SET_INT_REG(83, cnt_val, status)
+    IF status <> 0 THEN
+        resp = '1:R[83]-was-not-set'
+        WRITE('Error: ', status, CR)
+        RETURN(resp)
+    ENDIF
+    start = start + 3 + 1
+
+    -- Get the motion type
+    CNV_STR_INT(SUB_STR(cmd, start, 1), mtn_type)
+    start = start + 1 + 1
+
+    -- Get the number of joints of robot
+    CNV_STR_INT(SUB_STR(cmd, start, 1), nj)
+    start = start + 1 + 1
+
+    -- Read joint values from the cmd string
+    -- and convert the joint values to JOINTPOS6
+    FOR i=1 TO nj DO
+        CNV_STR_REAL(SUB_STR(cmd, start, n_chars), jval)
+        joint_vals[i] = jval
+        start = start + n_chars + 1
+        -- WRITE('Value ', i, ': ', jval, CR)
+    ENDFOR
+    CNV_REL_JPOS(joint_vals, jpos, status)
+    IF status <> 0 THEN
+        resp = '1:error-in-joint-values'
+        WRITE('Error: ', status, CR)
+        RETURN(resp)
+    ENDIF
+
+    -- Convert joint angles to a cartesian position
+    -- by calling the forward kinematics
+    -- and check the reachability
+    out_pos = CURPOS(0, 0)
+    JOINT2POS(jpos, $UFRAME, $UTOOL, 0,
+              out_pos, wjnt_cfg, ext_ang, status)
+    IF status <> 0 THEN
+        resp = '1:position-is-not-reachable'
+        RETURN(resp)
+    ENDIF
+
+    -- Put joint positions to PR[81]
+    SET_JPOS_REG(81, jpos, status)
+    IF status <> 0 THEN
+        resp = '1:PR[81]-was-not-set'
+        RETURN(resp)
+    ENDIF
+
+    IF mtn_type = 1 THEN
+        -- linear movement
+        CALL_PROGLIN('FANUC_REMOTE_MOVEL', 1, prog_index, FALSE)
+    ELSE
+        -- joint movement
+        CALL_PROGLIN('FANUC_REMOTE_MOVE', 1, prog_index, FALSE)
+    ENDIF
+
+    resp = '0:success'
+    RETURN(resp)
+
+END MOVEJ
+
+
+ROUTINE MOVEP(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Moves to pose.
+-- cmd string should follow the below format:
+-- movep:vel_val:cnt_val:nj:X:Y:Z:W:P:R
+-- where:
+-- vel_val: abc (3 digits), e.g.: 002, 020, 100
+-- cnt_val: abc (3 digits), e.g.: 003, 030, 100
+-- nj: n (1 digit), nj = 6
+-- X: (18 chars), e.g.: +1234567890.0987654321
+-- Y, Z, W, P, R are similar to J1
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    status:             INTEGER
+    vel_val:            INTEGER
+    acc_val:            INTEGER
+    cnt_val:            INTEGER
+    mtn_type:           INTEGER
+    nj:                 INTEGER
+    i:                  INTEGER
+    pose:               XYZWPR
+    pval:               REAL
+    start:              INTEGER
+    prog_index:         INTEGER
+    resp:               STRING[254]
+
+CONST
+    n_chars = 14
+BEGIN
+    start = 7
+
+    -- Get vel_val put it to R[81]
+    CNV_STR_INT(SUB_STR(cmd, start, 4), vel_val)
+    SET_INT_REG(81, vel_val, status)
+    IF status <> 0 THEN
+        resp = '1:R[81]-was-not-set'
+        WRITE('Error: ', status, CR)
+        RETURN(resp)
+    ENDIF
+    start = start + 4 + 1
+
+    -- Get acc_val and put it to R[82]
+    CNV_STR_INT(SUB_STR(cmd, start, 4), acc_val)
+    SET_INT_REG(82, acc_val, status)
+    IF status <> 0 THEN
+        resp = '1:R[82]-was-not-set'
+        WRITE('Error: ', status, CR)
+        RETURN(resp)
+    ENDIF
+    start = start + 4 + 1
+
+    -- Get CNT value and put it to R[83]
+    CNV_STR_INT(SUB_STR(cmd, start, 3), cnt_val)
+    SET_INT_REG(83, cnt_val, status)
+    IF status <> 0 THEN
+        resp = '1:R[83]-was-not-set'
+        WRITE('Error: ', status, CR)
+        RETURN(resp)
+    ENDIF
+    start = start + 3 + 1
+
+    -- Get the motion type
+    CNV_STR_INT(SUB_STR(cmd, start, 1), mtn_type)
+    start = start + 1 + 1
+
+    -- Get the number of joints of robot
+    CNV_STR_INT(SUB_STR(cmd, start, 1), nj)
+    start = start + 1 + 1
+
+    -- Read pose values from the cmd string
+    pose = CURPOS(0, 0)
+    FOR i=1 TO nj DO
+        CNV_STR_REAL(SUB_STR(cmd, start, n_chars), pval)
+
+        IF i=1 THEN
+            pose.x = pval
+        ENDIF
+
+        IF i=2 THEN
+            pose.y = pval
+        ENDIF
+
+        IF i=3 THEN
+            pose.z = pval
+        ENDIF
+
+        IF i=4 THEN
+            pose.w = pval
+        ENDIF
+
+        IF i=5 THEN
+            pose.p = pval
+        ENDIF
+
+        IF i=6 THEN
+            pose.r = pval
+        ENDIF
+
+        start = start + n_chars + 1
+    ENDFOR
+
+    CHECK_EPOS ((pose), $UFRAME, $UTOOL, status)
+    IF status <> 0 THEN
+        resp = '1:position-is-not-reachable'
+        RETURN(resp)
+    ENDIF
+
+    -- Put position to PR[81]
+    SET_POS_REG(81, pose, status)
+    IF status <> 0 THEN
+        resp = '1:PR[81]-was-not-set'
+        RETURN(resp)
+    ENDIF
+
+    IF mtn_type = 1 THEN
+        -- linear movement
+        CALL_PROGLIN('FANUC_REMOTE_MOVEL', 1, prog_index, FALSE)
+    ELSE
+        -- joint movement
+        CALL_PROGLIN('FANUC_REMOTE_MOVE', 1, prog_index, FALSE)
+    ENDIF
+
+    resp = '0:success'
+    RETURN(resp)
+
+END MOVEP
+
+
+
+ROUTINE REMOTECALL(cmd: STRING) : STRING
+----------------------------------------------------
+-- Function: Calls external program.
+-- cmd string should follow the below format:
+-- 'REMOTECALL:PROGNAME'
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    resp:           STRING[254]
+    prg_name:       STRING[32]
+    prog_index:     INTEGER
+BEGIN
+    -- Get prog name from 'REMOTECALL:PROG_NAME'
+    prg_name = SUB_STR(cmd, 12, STR_LEN(cmd) - 11)
+    CALL_PROGLIN(prg_name, 1, prog_index, FALSE)
+
+    resp = '0:success'
+    RETURN(resp)
+END REMOTECALL
+
+
+ROUTINE GET_RDO(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Gets robot digital out.
+-- cmd string should follow the below format:
+-- 'getrdo:n'
+-- n: a single digit number
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    rdo_num:            INTEGER
+BEGIN
+    -- Get RDO number
+    CNV_STR_INT(SUB_STR(cmd, 8, 1), rdo_num)
+
+    IF RDO[rdo_num] = TRUE THEN
+        RDO[rdo_num] = TRUE
+        resp = '0:1'
+        RETURN(resp)
+    ENDIF
+
+    IF RDO[rdo_num] = FALSE THEN
+        RDO[rdo_num] = FALSE
+        resp = '0:0'
+        RETURN(resp)
+    ENDIF
+
+    resp = '1:wrong-rdo-value'
+    RETURN(resp)
+
+END GET_RDO
+
+
+ROUTINE SET_RDO(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Sets robot digital out.
+-- cmd string should follow the below format:
+-- 'setrdo:n:value'
+-- n: a single digit number
+-- value: 'true' or 'false' (lowercase)
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    rdo_num:            INTEGER
+    rdo_val:            STRING[8]
+BEGIN
+    -- Get RDO number
+    CNV_STR_INT(SUB_STR(cmd, 8, 1), rdo_num)
+
+    -- Get RDO value
+    rdo_val = SUB_STR(cmd, 10, STR_LEN(cmd) - 9)
+
+    IF rdo_val = 'true' THEN
+        RDO[rdo_num] = TRUE
+        resp = '0:success'
+        RETURN(resp)
+    ENDIF
+
+    IF rdo_val = 'false' THEN
+        RDO[rdo_num] = FALSE
+        resp = '0:success'
+        RETURN(resp)
+    ENDIF
+
+    resp = '1:wrong-rdo-value'
+    RETURN(resp)
+
+END SET_RDO
+
+
+ROUTINE GET_DOUT(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Gets digital out.
+-- cmd string should follow the below format:
+-- 'getdout:n'
+-- n: a 5 digit number with leading zeros
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    dout_num:            INTEGER
+BEGIN
+    -- Get DOUT number
+    CNV_STR_INT(SUB_STR(cmd, 9, 5), dout_num)
+
+    IF DOUT[dout_num] = TRUE THEN
+        DOUT[dout_num] = TRUE
+        resp = '0:1'
+        RETURN(resp)
+    ENDIF
+
+    IF DOUT[dout_num] = FALSE THEN
+        DOUT[dout_num] = FALSE
+        resp = '0:0'
+        RETURN(resp)
+    ENDIF
+
+    resp = '1:wrong-dout-value'
+    RETURN(resp)
+
+END GET_DOUT
+
+ROUTINE SET_DOUT(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Sets digital out.
+-- cmd string should follow the below format:
+-- 'setdout:n:value'
+-- n: a 5 digit number with leading zeros
+-- value: 'true' or 'false' (lowercase)
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    dout_num:            INTEGER
+    dout_val:            STRING[8]
+BEGIN
+    -- Get DOUT number
+    CNV_STR_INT(SUB_STR(cmd, 9, 5), dout_num)
+
+    -- Get DOUT value
+    dout_val = SUB_STR(cmd, 15, STR_LEN(cmd) - 14)
+
+    IF dout_val = 'true' THEN
+        DOUT[dout_num] = TRUE
+        resp = '0:success'
+        RETURN(resp)
+    ENDIF
+
+    IF dout_val = 'false' THEN
+        DOUT[dout_num] = FALSE
+        resp = '0:success'
+        RETURN(resp)
+    ENDIF
+
+    resp = '1:wrong-dout-value'
+    RETURN(resp)
+
+END SET_DOUT
+
+ROUTINE SET_SYS_VAR(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Sets System Variable.
+-- cmd string should follow the below format:
+-- 'setsysvar:n:value'
+-- n: a string of the system variable to change
+-- value: 'T' or 'F' (T/F)
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+	resp:           	STRING[254]
+	sys_var:            STRING[254]
+	sys_val:            STRING[8]
+BEGIN
+	-- Get System Variable string
+	sys_var = SUB_STR(cmd, 11, (STR_LEN(cmd) - 12))
+
+	-- Get System Variable value
+	sys_val = SUB_STR(cmd, 10 + STR_LEN(sys_var) + 2, 1)
+
+	IF sys_val = 'T' THEN
+		SET_VAR(entry, '*SYSTEM*', sys_var, TRUE, status)
+		resp = '0:success'
+		RETURN(resp)
+	ENDIF
+
+	IF sys_val = 'F' THEN
+		SET_VAR(entry, '*SYSTEM*', sys_var, FALSE, status)
+		resp = '0:success'
+		RETURN(resp)
+	ENDIF
+
+	resp = '1:wrong-sys_var-value'
+	RETURN(resp)
+
+END SET_SYS_VAR
+
+
+ROUTINE SET_TOOL(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Set tool number (UTOOL_NUM)
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    sub_cmd:         STRING[30]
+    args:            STRING[200]
+    tool_num:        INTEGER
+    status:          INTEGER
+    entry:           INTEGER
+    prog_index:     INTEGER
+BEGIN
+    -- Parse command
+    -- Format: set_tool <tool_num>
+    SPLIT_CMD(cmd, sub_cmd, args)
+    WRITE('SET_TOOL command received: ', cmd, CR)
+    
+    -- Convert to integer
+    CNV_STR_INT(args, tool_num)
+    WRITE('Tool number to set: ', tool_num, CR)
+    
+    -- Update global state variable
+    g_tool_num = tool_num
+    WRITE('Global tool number updated to: ', g_tool_num, CR)
+    
+    -- Set R[84] for TP program
+    SET_INT_REG(84, tool_num, status)
+    IF status <> 0 THEN
+        RETURN('1:cannot-set-r84')
+    ENDIF
+    
+    -- Run TP program to set UTOOL_NUM
+    CALL_PROG('SET_UTOOL_TP', prog_index)
+    IF prog_index < 0 THEN
+        WRITE('Failed to run SET_UTOOL_TP, prog_index: ', prog_index, CR)
+        RETURN('1:cannot-run-set-utool-tp')
+    ENDIF
+    
+    -- Apply kinematic context
+    APL_KIN_CTX
+    
+    -- Log success
+    LOG_INFO('Tool number set to ' + args)
+    
+    RETURN('0:tool-set-success')
+END SET_TOOL
+
+
+ROUTINE SET_USER(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Set user frame number (UFRAME_NUM)
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    sub_cmd:         STRING[30]
+    args:            STRING[200]
+    user_num:        INTEGER
+    status:          INTEGER
+    entry:           INTEGER
+    prog_index:     INTEGER
+BEGIN
+    -- Parse command
+    -- Format: set_user <user_num>
+    SPLIT_CMD(cmd, sub_cmd, args)
+    WRITE('SET_USER command received: ', cmd, CR)
+    
+    -- Convert to integer
+    CNV_STR_INT(args, user_num)
+    WRITE('User frame number to set: ', user_num, CR)
+    
+    -- Update global state variable
+    g_uframe_num = user_num
+    WRITE('Global user frame number updated to: ', g_uframe_num, CR)
+    
+    -- Set R[85] for TP program
+    SET_INT_REG(85, user_num, status)
+    IF status <> 0 THEN
+        RETURN('1:cannot-set-r85')
+    ENDIF
+    
+    -- Run TP program to set UFRAME_NUM
+    CALL_PROG('SET_UFRAME_TP', prog_index)
+    IF prog_index < 0 THEN
+        WRITE('Failed to run SET_UFRAME_TP, prog_index: ', prog_index, CR)
+        RETURN('1:cannot-run-set-uframe-tp')
+    ENDIF
+    
+    -- Apply kinematic context
+    APL_KIN_CTX
+    
+    -- Log success
+    LOG_INFO('User frame number set to ' + args)
+    
+    RETURN('0:user-set-success')
+END SET_USER
+
+
+ROUTINE SET_COORD(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Set coordinate system (WORLD/USER/TOOL)
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    sub_cmd:         STRING[30]
+    args:            STRING[200]
+    entry:           INTEGER
+    status:          INTEGER
+BEGIN
+    -- Parse command
+    -- Format: set_coord <WORLD|USER|TOOL>
+    SPLIT_CMD(cmd, sub_cmd, args)
+    WRITE('SET_COORD command received: ', cmd, CR)
+    WRITE('Coordinate system requested: ', args, CR)
+    
+    -- Convert string to coord type
+    IF args = 'WORLD' THEN
+        g_coord_type = 0
+        WRITE('Setting coordinate system to WORLD', CR)
+    ELSE 
+    	IF args = 'USER' THEN
+    		 g_coord_type = 1
+             WRITE('Setting coordinate system to USER', CR)
+    	ELSE 
+    		IF args = 'TOOL' THEN
+        		g_coord_type = 2
+                WRITE('Setting coordinate system to TOOL', CR)
+    		ELSE
+        		RETURN('1:invalid-coord-type')
+    		ENDIF
+    	ENDIF	
+    ENDIF
+    
+    -- Apply kinematic context
+    APL_KIN_CTX
+    
+    -- Log success
+    LOG_INFO('Coordinate system set to ' + args)
+    
+    RETURN('0:coord-set-success')
+END SET_COORD
+
+
+ROUTINE GET_TOOL(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Get current tool number (UTOOL_NUM)
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    resp:            STRING[254]
+    val_str:         STRING[10]
+BEGIN
+    WRITE('GET_TOOL command received', CR)
+    -- Convert tool number to string
+    CNV_INT_STR(g_tool_num, 0, 0, val_str)
+    WRITE('Current tool number: ', g_tool_num, CR)
+    
+    -- Format response
+    resp = '0:' + val_str
+    
+    RETURN(resp)
+END GET_TOOL
+
+
+ROUTINE GET_USER(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Get current user frame number (UFRAME_NUM)
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    resp:            STRING[254]
+    val_str:         STRING[10]
+BEGIN
+    WRITE('GET_USER command received', CR)
+    -- Convert user frame number to string
+    CNV_INT_STR(g_uframe_num, 0, 0, val_str)
+    WRITE('Current user frame number: ', g_uframe_num, CR)
+    
+    -- Format response
+    resp = '0:' + val_str
+    
+    RETURN(resp)
+END GET_USER
+
+
+ROUTINE GET_COORD(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Get current coordinate system
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+----------------------------------------------------
+-- Return value: response string.
+----------------------------------------------------
+VAR
+    resp:            STRING[254]
+BEGIN
+    WRITE('GET_COORD command received', CR)
+    WRITE('Current coordinate type: ', g_coord_type, CR)
+    -- Convert coord type to string
+    SELECT g_coord_type OF
+        CASE (0):
+            resp = '0:WORLD'
+            WRITE('Coordinate system is WORLD', CR)
+        CASE (1):
+            resp = '0:USER'
+            WRITE('Coordinate system is USER', CR)
+        CASE (2):
+            resp = '0:TOOL'
+            WRITE('Coordinate system is TOOL', CR)
+        ELSE:
+            resp = '1:unknown-coord-type'
+    ENDSELECT
+    
+    RETURN(resp)
+END GET_COORD
+
+-- Helper function to split arguments by colon
+ROUTINE SPLIT_ARGS(args: STRING; args_array: ARRAY OF STRING): INTEGER
+VAR
+    i: INTEGER
+    start_idx: INTEGER
+    len: INTEGER
+    arg_count: INTEGER
+    seg_len: INTEGER
+BEGIN
+    len = STR_LEN(args)
+    IF len = 0 THEN
+        RETURN(0)
+    ENDIF
+
+    start_idx = 1
+    arg_count = 0
+
+    FOR i = 1 TO len DO
+        IF SUB_STR(args, i, 1) = ':' THEN
+            seg_len = i - start_idx
+            IF seg_len > 0 THEN
+                args_array[arg_count + 1] = SUB_STR(args, start_idx, seg_len)
+                arg_count = arg_count + 1
+            ENDIF
+            start_idx = i + 1
+        ELSE
+            IF i = len THEN
+                seg_len = i - start_idx + 1
+                IF seg_len > 0 THEN
+                    args_array[arg_count + 1] = SUB_STR(args, start_idx, seg_len)
+                    arg_count = arg_count + 1
+                ENDIF
+            ENDIF
+        ENDIF
+    ENDFOR
+    WRITE('Split args count: ', arg_count, CR)
+    RETURN(arg_count)
+END SPLIT_ARGS
+
+ROUTINE JOG_START_H(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Handle JOG_START command
+-- Format: JOG_START <AXIS> <DIR> [SPEED] [STEP]
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]: Command string
+----------------------------------------------------
+-- Return value: response string
+----------------------------------------------------
+VAR
+    sub_cmd:         STRING[30]
+    args:            STRING[200]
+    args_array:      ARRAY[4] OF STRING[20]
+    num_args:        INTEGER
+    axis_name:       STRING[1]
+    axis_idx:        INTEGER
+    dir_str:         STRING[1]
+    direction:       BOOLEAN
+    speed:           INTEGER
+    step:            REAL
+    i:               INTEGER
+    has_speed:       BOOLEAN
+    has_step:        BOOLEAN
+BEGIN
+    WRITE('JOG_START_H command received', CR)
+    WRITE('Command details: ', cmd, CR)
+    -- Parse command
+    -- Format: JOG_START <AXIS> <DIR> [SPEED] [STEP]
+    SPLIT_CMD(cmd, sub_cmd, args)
+    
+    -- Split arguments by space
+    num_args = SPLIT_ARGS(args, args_array)
+    
+    -- Need at least axis and direction
+    IF num_args < 2 THEN
+        RETURN('1:ERR INVALID_ARGS')
+    ENDIF
+    
+    -- Parse axis
+    axis_name = args_array[1]
+    axis_idx = AXIS2IDX(axis_name)
+    WRITE('Parsed axis: ', axis_name, ' idx: ', axis_idx, CR)
+    IF axis_idx = 0 THEN
+        RETURN('1:ERR INVALID_AXIS')
+    ENDIF
+    
+    -- Parse direction
+    dir_str = args_array[2]
+    IF dir_str = '+' THEN
+        direction = TRUE
+    ELSE
+    	IF dir_str = '-' THEN
+        	direction = FALSE
+   	 ELSE
+        	RETURN('1:ERR INVALID_DIRECTION')
+    	ENDIF
+    ENDIF
+    
+    -- Parse optional speed
+    has_speed = FALSE
+    IF num_args >= 3 THEN
+        CNV_STR_INT(args_array[3], speed)
+        has_speed = TRUE
+    ENDIF
+    WRITE('Parsed speed: ', speed, ' has_speed: ', has_speed, CR)
+    
+    -- Parse optional step
+    has_step = FALSE
+    IF num_args >= 4 THEN
+        CNV_STR_REAL(args_array[4], step)
+        has_step = TRUE
+    ENDIF
+    WRITE('Parsed step: ', step, ' has_step: ', has_step, CR)
+    
+    -- Call JOG_START with parsed parameters
+    IF has_speed AND has_step THEN
+        RETURN(JOG_START(axis_idx, direction, speed, step, step*2))
+    ELSE
+    	IF has_speed THEN
+        	RETURN(JOG_START(axis_idx, direction, speed, 0, 0))
+   	 ELSE
+        	RETURN(JOG_START(axis_idx, direction, 0, 0, 0))
+    	ENDIF
+    ENDIF
+END JOG_START_H
+
+
+ROUTINE JOG_STOP_H(cmd: STRING): STRING
+----------------------------------------------------
+-- Function: Handle JOG_STOP command
+-- Format: JOG_STOP <AXIS>
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]: Command string
+----------------------------------------------------
+-- Return value: response string
+----------------------------------------------------
+VAR
+    sub_cmd:         STRING[30]
+    args:            STRING[200]
+    axis_name:       STRING[1]
+    axis_idx:        INTEGER
+BEGIN
+    WRITE('JOG_STOP_H command received', CR)
+    WRITE('Command details: ', cmd, CR)
+    -- Parse command
+    -- Format: JOG_STOP <AXIS>
+    SPLIT_CMD(cmd, sub_cmd, args)
+    
+    -- Parse axis
+    axis_name = args
+    axis_idx = AXIS2IDX(axis_name)
+    IF axis_idx = 0 THEN
+        RETURN('1:ERR INVALID_AXIS')
+    ENDIF
+    
+    -- Call JOG_STOP with parsed axis
+    RETURN(JOG_STOP(axis_idx))
+END JOG_STOP_H
+
+-- Helper function to convert string to integer
+ROUTINE S_TO_I(str: STRING): INTEGER
+VAR
+    val: INTEGER
+BEGIN
+    CNV_STR_INT(str, val)
+    RETURN(val)
+END S_TO_I
+
+
+-- Helper function to convert string to real
+ROUTINE S_TO_R(str: STRING): REAL
+VAR
+    val: REAL
+BEGIN
+    CNV_STR_REAL(str, val)
+    RETURN(val)
+END S_TO_R
+
+
+ROUTINE HANDLE_CMD(cmd: STRING;
+                   resp: STRING) : BOOLEAN
+----------------------------------------------------
+-- Function: Handles commands.
+----------------------------------------------------
+-- Arguments:
+--      cmd [IN]:           command string.
+--      resp [IN, OUT]:     response string.
+----------------------------------------------------
+-- Return value: BOOLEAN keep or close connection.
+----------------------------------------------------
+BEGIN
+    IF cmd = 'exit' THEN
+        resp = '0:success'
+        RETURN(FALSE)
+    ENDIF
+
+    -- curpos
+    IF SUB_STR(cmd, 1, 6) = 'curpos' THEN
+        resp = GET_CURPOS(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- curjpos
+    IF SUB_STR(cmd, 1, 7) = 'curjpos' THEN
+        resp = GET_CURJPOS(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- ins_pwr
+    IF SUB_STR(cmd, 1, 7) = 'ins_pwr' THEN
+        resp = GET_INS_PWR(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- movej
+    IF SUB_STR(cmd, 1, 5) = 'movej' THEN
+        resp = MOVEJ(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- movep
+    IF SUB_STR(cmd, 1, 5) = 'movep' THEN
+        resp = MOVEP(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- fanuccall: call external TP program
+    IF SUB_STR(cmd, 1, 10) = 'fanuccall' THEN
+        resp = REMOTECALL(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- setrdo: set Robot Digital Output
+    IF SUB_STR(cmd, 1, 6) = 'setrdo' THEN
+        resp = SET_RDO(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- getrdo: get Robot Digital Output
+    IF SUB_STR(cmd, 1, 6) = 'getrdo' THEN
+        resp = GET_RDO(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+     -- setdout: set Digital Output
+    IF SUB_STR(cmd, 1, 7) = 'setdout' THEN
+        resp = SET_DOUT(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- getdout: get Digital Output
+    IF SUB_STR(cmd, 1, 7) = 'getdout' THEN
+        resp = GET_DOUT(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- setsysvar: set System Variable
+	IF SUB_STR(cmd, 1, 9) = 'setsysvar' THEN
+        resp = SET_SYS_VAR(cmd)
+        RETURN(TRUE)
+	ENDIF
+
+    -- set_tool: set tool number
+    IF SUB_STR(cmd, 1, 8) = 'set_tool' THEN
+        resp = SET_TOOL(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- set_user: set user frame number
+    IF SUB_STR(cmd, 1, 8) = 'set_user' THEN
+        resp = SET_USER(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- set_coord: set coordinate system (WORLD/USER/TOOL)
+    IF SUB_STR(cmd, 1, 9) = 'set_coord' THEN
+        resp = SET_COORD(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- get_tool: get current tool number
+    IF SUB_STR(cmd, 1, 8) = 'get_tool' THEN
+        resp = GET_TOOL(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- get_user: get current user frame number
+    IF SUB_STR(cmd, 1, 8) = 'get_user' THEN
+        resp = GET_USER(cmd)
+        RETURN(TRUE)
+    ENDIF
+
+    -- get_coord: get current coordinate system
+    IF SUB_STR(cmd, 1, 9) = 'get_coord' THEN
+        resp = GET_COORD(cmd)
+        RETURN(TRUE)
+    ENDIF
+    
+    -- jog_start: start continuous jogging of an axis
+    IF SUB_STR(cmd, 1, 9) = 'jog_start' THEN
+        resp = JOG_START_H(cmd)
+        RETURN(TRUE)
+    ENDIF
+    
+    -- jog_stop: stop jogging of a specific axis
+    IF SUB_STR(cmd, 1, 8) = 'jog_stop' THEN
+        -- Check if it's jog_stop_all or jog_stop
+        IF cmd = 'jog_stop_all' THEN
+            resp = JOG_STOP_ALL
+            RETURN(TRUE)
+        ELSE
+            resp = JOG_STOP_H(cmd)
+            RETURN(TRUE)
+        ENDIF
+    ENDIF
+
+    -- if none of the above cmds matched
+    WRITE('WRONG COMMAND: ', cmd, CR)
+    resp = '1:wrong-command'
+    RETURN(TRUE)
+END HANDLE_CMD

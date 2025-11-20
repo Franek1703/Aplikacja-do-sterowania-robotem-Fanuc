@@ -1,0 +1,15 @@
+-- Description:         Karel utility routines
+
+
+ROUTINE TP_CLS
+----------------------------------------------------
+-- Function: clears teach pendant.
+----------------------------------------------------
+-- Arguments: none.
+----------------------------------------------------
+-- Return value: none.
+----------------------------------------------------
+BEGIN
+    WRITE(CHR(128), CHR(137))
+    FORCE_SPMENU(TP_PANEL, SPI_TPUSER, 1)
+END TP_CLS
