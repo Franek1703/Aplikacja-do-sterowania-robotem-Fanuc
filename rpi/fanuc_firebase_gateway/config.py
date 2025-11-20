@@ -2,43 +2,58 @@
 Configuration management for the Firebase Gateway.
 
 Reads settings from environment variables or .env file.
+All robot configuration now comes from Firestore dynamically.
 """
 
 import os
-from dataclasses import dataclass, field
+import uuid
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def get_device_id() -> str:
+    """Get unique device ID based on MAC address.
+    
+    Returns:
+        Device ID in format: device_rpi_<mac_address>
+    """
+    try:
+        # Get MAC address as integer
+        mac = uuid.getnode()
+        # Convert to hex string without separators
+        mac_hex = f"{mac:012x}"
+        # Format as device ID
+        device_id = f"device_rpi_{mac_hex}"
+        return device_id
+    except Exception as e:
+        logger.error(f"Failed to get MAC address: {e}")
+        # Fallback to a random UUID (not recommended for production)
+        fallback_id = f"device_rpi_{uuid.uuid4().hex[:12]}"
+        logger.warning(f"Using fallback device ID: {fallback_id}")
+        return fallback_id
 
 
 @dataclass
 class Settings:
     """Configuration settings for the Firebase Gateway.
     
+    All robot-specific configuration is now loaded from Firestore dynamically.
+    The .env file only contains Firebase credentials and basic operational settings.
+    
     Attributes:
         firebase_service_account: Path to Firebase service account JSON file
         firebase_rtdb_url: Firebase Realtime Database URL
-        device_id: Unique identifier for this Raspberry Pi device
-        simulation_mode: If True, use simulated robot instead of real hardware
         status_publish_interval: Seconds between status updates (default: 0.2s = 200ms)
-        robot_host: IP address of FANUC robot controller
-        robot_port: Port for robot socket communication
-        robot_ftp_user: FTP username for robot
-        robot_ftp_password: FTP password for robot
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
+        device_id: Auto-generated unique identifier based on MAC address
     """
     
     firebase_service_account: str
     firebase_rtdb_url: str
-    device_id: str
-    simulation_mode: bool = False
     status_publish_interval: float = 0.2
-    robot_host: str = "192.168.0.20"
-    robot_port: int = 18735
-    robot_ftp_user: str = "anonymous"
-    robot_ftp_password: str = ""
     log_level: str = "INFO"
     
     def __post_init__(self):
@@ -48,9 +63,6 @@ class Settings:
         
         if not self.firebase_rtdb_url:
             raise ValueError("FIREBASE_RTDB_URL must be set")
-        
-        if not self.device_id:
-            raise ValueError("DEVICE_ID must be set")
         
         # Check if service account file exists
         service_account_path = Path(self.firebase_service_account)
@@ -62,12 +74,18 @@ class Settings:
         # Validate status publish interval
         if self.status_publish_interval <= 0:
             raise ValueError("STATUS_PUBLISH_INTERVAL must be positive")
+    
+    @property
+    def device_id(self) -> str:
+        """Get the device ID based on MAC address."""
+        return get_device_id()
 
 
 def load_settings() -> Settings:
     """Load settings from environment variables.
     
     Supports reading from .env file if python-dotenv is available.
+    Robot configuration is NO LONGER read from .env - it comes from Firestore.
     
     Returns:
         Settings object with configuration
@@ -84,7 +102,7 @@ def load_settings() -> Settings:
     except ImportError:
         logger.debug("python-dotenv not available, using environment variables only")
     
-    # Read settings from environment
+    # Read settings from environment (Firebase + operational settings only)
     settings = Settings(
         firebase_service_account=os.getenv(
             "FIREBASE_SERVICE_ACCOUNT",
@@ -94,18 +112,11 @@ def load_settings() -> Settings:
             "FIREBASE_RTDB_URL",
             ""
         ),
-        device_id=os.getenv("DEVICE_ID", ""),
-        simulation_mode=os.getenv("SIMULATION", "0").lower() in ("1", "true", "yes"),
         status_publish_interval=float(os.getenv("STATUS_PUBLISH_INTERVAL", "0.2")),
-        robot_host=os.getenv("ROBOT_HOST", "192.168.0.20"),
-        robot_port=int(os.getenv("ROBOT_PORT", "18735")),
-        robot_ftp_user=os.getenv("ROBOT_FTP_USER", "anonymous"),
-        robot_ftp_password=os.getenv("ROBOT_FTP_PASSWORD", ""),
         log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
     )
     
-    logger.info(f"Loaded settings: device_id={settings.device_id}, "
-                f"simulation_mode={settings.simulation_mode}")
+    logger.info(f"Loaded settings: device_id={settings.device_id}")
     
     return settings
 

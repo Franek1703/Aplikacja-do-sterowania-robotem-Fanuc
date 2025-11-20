@@ -2,13 +2,33 @@
 
 ## 📋 Project Overview
 
-A production-ready Python package that bridges FANUC industrial robots with Firebase cloud services, enabling mobile app control via Raspberry Pi gateway.
+A production-ready Python package that bridges FANUC industrial robots with Firebase cloud services, enabling mobile app control via Raspberry Pi gateway with **dynamic robot configuration**.
 
-**Status**: ✅ Complete and ready for deployment
+**Version**: 2.0  
+**Status**: ✅ Complete and ready for deployment  
+**Architecture**: Dynamic Firestore-based configuration with auto-registration
 
 ## 🎯 Key Features
 
-### ✅ Implemented
+### ✅ Version 2.0 Features
+
+- ✅ **Dynamic Robot Configuration** (NEW in v2.0)
+  - All robot settings loaded from Firestore
+  - No manual configuration in .env files
+  - Hot-swap robots without restart
+  - Per-robot simulation mode
+
+- ✅ **Auto Device Registration** (NEW in v2.0)
+  - MAC-based device ID generation
+  - Automatic Firestore registration
+  - Periodic heartbeat updates
+  - Online/offline status tracking
+
+- ✅ **Robot Session Management** (NEW in v2.0)
+  - Watch for robot selection in RTDB
+  - Dynamic session creation/destruction
+  - Clean lifecycle management
+  - Multi-robot ready architecture
 
 - ✅ **Two-way Firebase Communication**
   - Firestore for static metadata (users, devices, robots)
@@ -27,10 +47,6 @@ A production-ready Python package that bridges FANUC industrial robots with Fire
   - Directory management
   - Full integration with robot FTP server
 
-- ✅ **Dual Mode Operation**
-  - Real mode: Connects to actual FANUC robot
-  - Simulation mode: Testing without hardware
-
 - ✅ **Production Features**
   - Comprehensive error handling
   - Structured logging
@@ -40,26 +56,28 @@ A production-ready Python package that bridges FANUC industrial robots with Fire
 
 - ✅ **Testing & Documentation**
   - Unit tests with pytest
-  - Installation guide
+  - Migration guide (v1.0 → v2.0)
   - Architecture documentation
   - Protocol specification
-  - Quick start scripts
+  - Refactoring summary
 
 ## 📁 Package Structure
 
 ```
 fanuc_firebase_gateway/
-├── Core Modules
+├── Core Modules (v2.0)
 │   ├── __init__.py              # Package initialization
-│   ├── config.py                # Configuration management
+│   ├── config.py                # Configuration (Firebase only, MAC-based device ID)
 │   ├── firebase_client.py       # Firebase SDK wrapper
 │   ├── models.py                # Data models (Command, Status, etc.)
+│   ├── device_manager.py        # Device registration & heartbeat (NEW v2.0)
+│   ├── robot_session_manager.py # Dynamic robot session management (NEW v2.0)
 │   ├── robot_adapter.py         # Robot interface (Real + Simulated)
 │   ├── ftp_bridge.py            # FTP operations handler
 │   ├── dispatcher.py            # Command routing
 │   ├── status_publisher.py      # Status publishing thread
 │   ├── command_listener.py      # Command listening thread
-│   └── main.py                  # Main application entry point
+│   └── main.py                  # Main application (refactored for v2.0)
 │
 ├── Tests
 │   └── tests/
@@ -209,24 +227,43 @@ sudo systemctl start fanuc-gateway
 
 ## 📝 Configuration Reference
 
-### Required Environment Variables
+### Version 2.0 Configuration (Minimal .env)
 
+**Required in .env**:
 ```bash
 FIREBASE_SERVICE_ACCOUNT=/path/to/serviceAccountKey.json
 FIREBASE_RTDB_URL=https://your-project.firebaseio.com
-DEVICE_ID=rpi_gateway_001
 ```
 
-### Optional Environment Variables
-
+**Optional in .env**:
 ```bash
-ROBOT_HOST=192.168.0.20
-ROBOT_PORT=18735
-ROBOT_FTP_USER=anonymous
-ROBOT_FTP_PASSWORD=
-SIMULATION=0
 STATUS_PUBLISH_INTERVAL=0.2
 LOG_LEVEL=INFO
+```
+
+**Removed from .env** (now in Firestore):
+- ~~DEVICE_ID~~ → Auto-generated from MAC address
+- ~~ROBOT_HOST~~ → In Firestore `/robots/{robotId}/ipAddress`
+- ~~ROBOT_PORT~~ → In Firestore `/robots/{robotId}/tcpPort`
+- ~~ROBOT_FTP_USER~~ → In Firestore `/robots/{robotId}/ftpUser`
+- ~~ROBOT_FTP_PASSWORD~~ → In Firestore `/robots/{robotId}/ftpPassword`
+- ~~SIMULATION~~ → In Firestore `/robots/{robotId}/simulation`
+
+### Robot Configuration (in Firestore)
+
+**Collection**: `/robots/{robotId}`
+
+```json
+{
+  "name": "FANUC R-2000iC/165F",
+  "ipAddress": "192.168.0.20",
+  "tcpPort": 18735,
+  "ftpUser": "anonymous",
+  "ftpPassword": "",
+  "simulation": false,
+  "controller": "R-30iB",
+  "model": "R-2000iC/165F"
+}
 ```
 
 ## 🧪 Testing
@@ -364,27 +401,29 @@ Real vs. simulated robot adapters are interchangeable.
 
 ## 🐛 Known Limitations
 
-1. **Single Robot**: Currently supports one robot per gateway (easily extensible)
-2. **Polling**: Uses polling instead of streaming (reliable but higher latency)
+1. **Sequential Robot Sessions**: One active robot session at a time (by design for v2.0)
+2. **Polling**: Uses polling instead of streaming (reliable but 2s latency for robot selection)
 3. **No Retry Logic**: Failed commands don't retry automatically
 4. **Limited System Variables**: Only boolean system variables supported
 5. **No Alarm Parsing**: Alarm data not yet parsed and published
+6. **MAC Address Dependency**: Device ID based on MAC (stable but hardware-dependent)
 
 ## 🚧 Future Enhancements
 
 ### High Priority
 
-- [ ] Multi-robot support in single gateway
+- [ ] Parallel multi-robot sessions (multiple robots simultaneously)
 - [ ] Alarm parsing and real-time publishing
 - [ ] Retry logic with exponential backoff
-- [ ] WebSocket support for lower latency
+- [ ] WebSocket/streaming instead of polling for robot selection
 
 ### Medium Priority
 
 - [ ] Health check endpoint
 - [ ] Prometheus metrics exporter
-- [ ] Configuration file support (YAML/JSON)
+- [ ] Robot capability profiles in Firestore
 - [ ] Robot info query implementation
+- [ ] User permissions per robot
 
 ### Low Priority
 
@@ -392,6 +431,15 @@ Real vs. simulated robot adapters are interchangeable.
 - [ ] TLS encryption for robot communication
 - [ ] Web dashboard for monitoring
 - [ ] Automated backups
+- [ ] Robot scheduling/reservation system
+
+### Completed in v2.0
+
+- [x] Dynamic robot configuration from Firestore
+- [x] Auto device registration
+- [x] Hot-swap robot support
+- [x] MAC-based device ID
+- [x] Per-robot simulation mode
 
 ## 🤝 Integration Points
 
@@ -441,6 +489,7 @@ See LICENSE file for details.
 
 ## ✅ Completion Checklist
 
+### Version 1.0 (Completed)
 - [x] Core package structure
 - [x] Firebase client integration
 - [x] Robot adapter (real + simulated)
@@ -452,29 +501,49 @@ See LICENSE file for details.
 - [x] Configuration management
 - [x] Data models
 - [x] Unit tests
-- [x] Documentation (README, INSTALL, ARCHITECTURE)
+- [x] Documentation
 - [x] Protocol specification
-- [x] Deployment files (systemd, scripts)
+- [x] Deployment files
 - [x] Test utilities
-- [x] Error handling
-- [x] Logging
-- [x] Type hints
-- [x] Docstrings
+- [x] Error handling, logging, type hints
+
+### Version 2.0 (Completed)
+- [x] Device auto-registration (MAC-based)
+- [x] Device manager with heartbeat
+- [x] Robot session manager
+- [x] Dynamic robot configuration from Firestore
+- [x] Hot-swap robot support
+- [x] Refactored main application
+- [x] Updated configuration (minimal .env)
+- [x] Migration guide
+- [x] Refactoring documentation
+- [x] Updated README and docs
+- [x] Test script updates
 
 ## 🎉 Ready for Production
 
-The package is complete and ready for deployment. All core features are implemented, tested, and documented. The code follows Python best practices and includes comprehensive error handling and logging.
+**Version 2.0** is complete and ready for deployment! 
+
+The package now features:
+- ✅ Dynamic robot configuration from Firestore
+- ✅ Auto device registration
+- ✅ Hot-swap robot capability
+- ✅ Centralized management via Firebase
+- ✅ Production-ready code with comprehensive error handling
+- ✅ Complete documentation and migration guide
 
 **Next Steps**:
 1. Deploy to Raspberry Pi
-2. Configure Firebase project
-3. Test with real robot
-4. Deploy mobile app
-5. Monitor and iterate
+2. Configure Firebase project (Firestore + RTDB)
+3. Create robot documents in Firestore
+4. Start gateway (auto-registers device)
+5. Use mobile app to select robot
+6. Monitor and iterate
 
 ---
 
 **Created**: January 2025  
-**Version**: 1.0.0  
-**Status**: Production Ready ✅
+**Version**: 2.0.0  
+**Status**: Production Ready ✅  
+**Architecture**: Dynamic Firestore-based configuration
 

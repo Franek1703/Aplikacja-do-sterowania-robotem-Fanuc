@@ -207,7 +207,7 @@ def main():
     try:
         settings = load_settings()
         logger.info(f"✓ Settings loaded")
-        logger.info(f"  Device ID: {settings.device_id}")
+        logger.info(f"  Device ID: {settings.device_id} (auto-generated from MAC)")
         logger.info(f"  RTDB URL: {settings.firebase_rtdb_url}")
     except Exception as e:
         logger.error(f"✗ Failed to load settings: {e}")
@@ -225,7 +225,23 @@ def main():
     
     # Configuration
     device_id = settings.device_id
-    robot_id = "robotA"  # Default robot ID
+    
+    # Get selected robot ID from RTDB
+    try:
+        selected_robot_ref = rtdb_root.child(f"devices/{device_id}/selectedRobotId")
+        robot_id = selected_robot_ref.get()
+        
+        if not robot_id:
+            logger.error("✗ No robot selected!")
+            logger.error(f"  Please set /devices/{device_id}/selectedRobotId in Firebase RTDB")
+            logger.error(f"  Example: Set it to your robot document ID from Firestore")
+            return False
+        
+        logger.info(f"✓ Selected robot: {robot_id}")
+        logger.info("")
+    except Exception as e:
+        logger.error(f"✗ Failed to get selected robot: {e}")
+        return False
     
     logger.info("=" * 60)
     logger.info("Sending Test Commands")

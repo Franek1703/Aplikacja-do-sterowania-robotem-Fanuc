@@ -2,6 +2,7 @@
 Main entry point for FANUC Firebase Gateway.
 
 Runs as a long-running service on Raspberry Pi.
+All robot configuration now comes from Firestore dynamically.
 See firebase_protocol.md for complete protocol specification.
 """
 
@@ -13,42 +14,34 @@ from typing import Optional
 
 try:
     from .config import Settings, load_settings, setup_logging
-    from .firebase_client import initialize_firebase, get_rtdb_root
-    from .robot_adapter import RealRobotAdapter, SimulatedRobotAdapter, RobotInterface
-    from .ftp_bridge import FTPBridge
-    from .dispatcher import CommandDispatcher
-    from .status_publisher import StatusPublisher
-    from .command_listener import CommandListener
+    from .firebase_client import initialize_firebase
+    from .device_manager import DeviceManager
+    from .robot_session_manager import RobotSessionManager
 except ImportError:
     from config import Settings, load_settings, setup_logging
-    from firebase_client import initialize_firebase, get_rtdb_root
-    from robot_adapter import RealRobotAdapter, SimulatedRobotAdapter, RobotInterface
-    from ftp_bridge import FTPBridge
-    from dispatcher import CommandDispatcher
-    from status_publisher import StatusPublisher
-    from command_listener import CommandListener
+    from firebase_client import initialize_firebase
+    from device_manager import DeviceManager
+    from robot_session_manager import RobotSessionManager
 
 logger = logging.getLogger(__name__)
 
 
 class FirebaseGateway:
-    """Main gateway application."""
+    """Main gateway application with dynamic robot configuration."""
     
     def __init__(self, settings: Settings):
         """Initialize the gateway.
         
         Args:
-            settings: Configuration settings
+            settings: Configuration settings (Firebase + operational only)
         """
         self.settings = settings
-        self.robot: Optional[RobotInterface] = None
-        self.ftp_bridge: Optional[FTPBridge] = None
-        self.dispatcher: Optional[CommandDispatcher] = None
-        self.status_publisher: Optional[StatusPublisher] = None
-        self.command_listener: Optional[CommandListener] = None
+        self.device_manager: Optional[DeviceManager] = None
+        self.session_manager: Optional[RobotSessionManager] = None
         self._running = False
         
         logger.info("Initializing FirebaseGateway")
+        logger.info(f"  Device ID: {settings.device_id}")
     
     def setup(self) -> None:
         """Set up all components."""
@@ -56,64 +49,19 @@ class FirebaseGateway:
         
         # Initialize Firebase
         initialize_firebase(self.settings)
-        rtdb_root = get_rtdb_root()
+        logger.info("✓ Firebase initialized")
         
-        # Create robot adapter
-        if self.settings.simulation_mode:
-            logger.info("Using SimulatedRobotAdapter")
-            self.robot = SimulatedRobotAdapter()
-        else:
-            logger.info("Using RealRobotAdapter")
-            self.robot = RealRobotAdapter(
-                host=self.settings.robot_host,
-                port=self.settings.robot_port,
-                ftp_user=self.settings.robot_ftp_user,
-                ftp_password=self.settings.robot_ftp_password,
-                ee_do_type="RDO",  # Could be configurable
-                ee_do_num=7,       # Could be configurable
-            )
+        # Create and register device
+        self.device_manager = DeviceManager(self.settings.device_id)
+        self.device_manager.ensure_device_registered()
+        logger.info("✓ Device registered in Firestore")
         
-        # Connect to robot
-        logger.info("Connecting to robot...")
-        code, msg = self.robot.connect()
-        if code != 0:
-            logger.error(f"Failed to connect to robot: {msg}")
-            raise RuntimeError(f"Robot connection failed: {msg}")
-        logger.info(f"Robot connected: {msg}")
-        
-        # Create FTP bridge
-        self.ftp_bridge = FTPBridge(
-            host=self.settings.robot_host,
-            user=self.settings.robot_ftp_user,
-            password=self.settings.robot_ftp_password,
-            simulation=self.settings.simulation_mode,
-        )
-        
-        # Create dispatcher
-        self.dispatcher = CommandDispatcher(
-            robot=self.robot,
-            ftp_bridge=self.ftp_bridge,
-        )
-        
-        # For now, use a default robot ID (could be configurable)
-        robot_id = "robotA"
-        
-        # Create status publisher
-        self.status_publisher = StatusPublisher(
+        # Create robot session manager
+        self.session_manager = RobotSessionManager(
             device_id=self.settings.device_id,
-            robot_id=robot_id,
-            robot=self.robot,
-            rtdb_root=rtdb_root,
-            interval=self.settings.status_publish_interval,
+            status_interval=self.settings.status_publish_interval,
         )
-        
-        # Create command listener
-        self.command_listener = CommandListener(
-            device_id=self.settings.device_id,
-            robot_id=robot_id,
-            dispatcher=self.dispatcher,
-            rtdb_root=rtdb_root,
-        )
+        logger.info("✓ Robot session manager created")
         
         logger.info("FirebaseGateway setup complete")
     
@@ -123,13 +71,21 @@ class FirebaseGateway:
         
         self._running = True
         
-        # Start status publisher
-        self.status_publisher.start()
+        # Start device heartbeat
+        self.device_manager.start_heartbeat()
+        logger.info("✓ Device heartbeat started")
         
-        # Start command listener
-        self.command_listener.start()
+        # Start robot session manager (watches for selectedRobotId)
+        self.session_manager.start()
+        logger.info("✓ Robot session manager started")
         
+        logger.info("=" * 60)
         logger.info("FirebaseGateway started successfully")
+        logger.info("=" * 60)
+        logger.info("")
+        logger.info("Waiting for robot selection from mobile app...")
+        logger.info(f"Set /devices/{self.settings.device_id}/selectedRobotId in RTDB")
+        logger.info("")
     
     def stop(self) -> None:
         """Stop the gateway."""
@@ -140,21 +96,13 @@ class FirebaseGateway:
         
         self._running = False
         
-        # Stop command listener
-        if self.command_listener:
-            self.command_listener.stop()
+        # Stop robot session manager
+        if self.session_manager:
+            self.session_manager.stop()
         
-        # Stop status publisher
-        if self.status_publisher:
-            self.status_publisher.stop()
-        
-        # Disconnect from robot
-        if self.robot:
-            try:
-                self.robot.disconnect()
-                logger.info("Disconnected from robot")
-            except Exception as e:
-                logger.error(f"Error disconnecting from robot: {e}")
+        # Stop device heartbeat
+        if self.device_manager:
+            self.device_manager.stop_heartbeat()
         
         logger.info("FirebaseGateway stopped")
     
@@ -196,12 +144,13 @@ def main() -> None:
     setup_logging(settings.log_level)
     
     logger.info("=" * 60)
-    logger.info("FANUC Firebase Gateway")
+    logger.info("FANUC Firebase Gateway v2.0")
     logger.info("=" * 60)
-    logger.info(f"Device ID: {settings.device_id}")
-    logger.info(f"Simulation Mode: {settings.simulation_mode}")
-    logger.info(f"Robot Host: {settings.robot_host}:{settings.robot_port}")
+    logger.info(f"Device ID: {settings.device_id} (auto-generated from MAC)")
     logger.info(f"Status Interval: {settings.status_publish_interval}s")
+    logger.info(f"Log Level: {settings.log_level}")
+    logger.info("=" * 60)
+    logger.info("Note: Robot configuration loaded dynamically from Firestore")
     logger.info("=" * 60)
     
     # Create and run gateway
