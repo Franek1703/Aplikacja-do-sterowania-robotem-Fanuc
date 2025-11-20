@@ -33,6 +33,10 @@ VAR
     jog_pr:             XYZWPR
     multi_axis:         BOOLEAN
     active_axest:       INTEGER
+    VAR last_speed : INTEGER
+    last_acc   : INTEGER
+    last_cnt   : INTEGER;
+    pr_toggle : BOOLEAN -- FALSE => PR[81], TRUE => PR[82]
 
     -- Time in ms condition handlera
     cont_timer:         INTEGER
@@ -99,27 +103,27 @@ BEGIN -- Begin main program
             READ comm_file(cmd::0)            -- non-blocking read
             status = IO_STATUS(comm_file)
 
-            -- === Socket disconnected or invalid ===
-            -- IF (status <> 0) THEN
-            --     WRITE('Socket read error: ', status, CR)
-            --     keep_conn = FALSE
-            -- ELSE
-            -- === Process incoming command ===
-            IF STR_LEN(cmd) > 0 THEN
-                WRITE('Received cmd: ', cmd, CR)
-                keep_conn = HANDLE_CMD(cmd, resp)
-                WRITE comm_file(resp)
-                status = IO_STATUS(comm_file)
-                IF (status <> 0) THEN
-                    WRITE('Socket write error: ', status, CR)
-                    keep_conn = FALSE
-                ENDIF
+            --=== Socket disconnected or invalid ===
+            IF (status <> 0) THEN
+                WRITE('Socket read error: ', status, CR)
+                keep_conn = FALSE
+            ELSE
+                -- === Process incoming command ===
+                IF STR_LEN(cmd) > 0 THEN
+                    WRITE('Received cmd: ', cmd, CR)
+                    keep_conn = HANDLE_CMD(cmd, resp)
+                    WRITE comm_file(resp)
+                    status = IO_STATUS(comm_file)
+                    IF (status <> 0) THEN
+                        WRITE('Socket write error: ', status, CR)
+                        keep_conn = FALSE
+                    ENDIF
 
-                IF NOT keep_conn THEN
-                    READ comm_file(cmd::0)  -- flush buffer
+                    IF NOT keep_conn THEN
+                        READ comm_file(cmd::0)  -- flush buffer
+                    ENDIF
                 ENDIF
             ENDIF
-            -- ENDIF
 
             -- === Jog tick handling ===
             IF jog_tick_due AND (NOT jog_in_progr) THEN
@@ -127,10 +131,9 @@ BEGIN -- Begin main program
                 JOG_TICK
                 jog_in_progr = FALSE
                 jog_tick_due = FALSE
-                WRITE('TICK', CR)
             ENDIF
 
-            DELAY 20      -- ~20ms idle delay
+            -- DELAY 20      -- ~20ms idle delay
         ENDWHILE
 
         WRITE('Client disconnected.', CR)
