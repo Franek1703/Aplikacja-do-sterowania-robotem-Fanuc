@@ -2,7 +2,7 @@ part of 'auth_cubit.dart';
 
 /// Auth state
 class AuthState extends Equatable {
-  final User? user;
+  final UserModel? user;
   final bool isLoading;
   final String? error;
 
@@ -22,7 +22,7 @@ class AuthState extends Equatable {
         isLoading = true,
         error = null;
 
-  const AuthState.authenticated(User this.user)
+  const AuthState.authenticated(UserModel this.user)
       : isLoading = false,
         error = null;
 

@@ -4,13 +4,13 @@ import '../models/user.dart';
 /// TODO: Implement Firebase Firestore integration
 abstract class UserRepository {
   /// Get user profile by UID
-  Future<User?> getUser(String uid);
+  Future<UserModel?> getUser(String uid);
 
   /// Create new user
-  Future<User> createUser(User user);
+  Future<UserModel> createUser(UserModel user);
 
   /// Update user profile
-  Future<User> updateUser(User user);
+  Future<UserModel> updateUser(UserModel user);
 
   /// Delete user
   Future<void> deleteUser(String uid);
