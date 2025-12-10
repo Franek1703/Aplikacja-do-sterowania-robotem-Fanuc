@@ -6,7 +6,7 @@ class RobotControlState extends Equatable {
   final RobotJoints? joints;
   final int userFrame;
   final int toolNumber;
-  final String activeProgram;
+  final String coordSystem;
   final bool isLoading;
   final String? error;
 
@@ -15,7 +15,7 @@ class RobotControlState extends Equatable {
     this.joints,
     this.userFrame = 0,
     this.toolNumber = 1,
-    this.activeProgram = '',
+    this.coordSystem = 'WORLD',
     this.isLoading = false,
     this.error,
   });
@@ -25,7 +25,7 @@ class RobotControlState extends Equatable {
         joints = null,
         userFrame = 0,
         toolNumber = 1,
-        activeProgram = '',
+        coordSystem = 'WORLD',
         isLoading = false,
         error = null;
 
@@ -34,7 +34,7 @@ class RobotControlState extends Equatable {
         joints = null,
         userFrame = 0,
         toolNumber = 1,
-        activeProgram = '',
+        coordSystem = 'WORLD',
         isLoading = true,
         error = null;
 
@@ -43,7 +43,7 @@ class RobotControlState extends Equatable {
         joints = null,
         userFrame = 0,
         toolNumber = 1,
-        activeProgram = '',
+        coordSystem = 'WORLD',
         isLoading = false;
 
   RobotControlState copyWith({
@@ -51,7 +51,7 @@ class RobotControlState extends Equatable {
     RobotJoints? joints,
     int? userFrame,
     int? toolNumber,
-    String? activeProgram,
+    String? coordSystem,
     bool? isLoading,
     String? error,
   }) {
@@ -60,7 +60,7 @@ class RobotControlState extends Equatable {
       joints: joints ?? this.joints,
       userFrame: userFrame ?? this.userFrame,
       toolNumber: toolNumber ?? this.toolNumber,
-      activeProgram: activeProgram ?? this.activeProgram,
+      coordSystem: coordSystem ?? this.coordSystem,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
     );
@@ -72,7 +72,7 @@ class RobotControlState extends Equatable {
         joints,
         userFrame,
         toolNumber,
-        activeProgram,
+        coordSystem,
         isLoading,
         error,
       ];

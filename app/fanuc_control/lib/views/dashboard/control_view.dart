@@ -8,6 +8,7 @@ import '../../features/dashboard/widgets/axis_control.dart';
 import '../../features/dashboard/widgets/position_card.dart';
 import '../../features/dashboard/widgets/joints_card.dart';
 import '../../features/dashboard/widgets/config_card.dart';
+import '../../features/dashboard/widgets/gripper_control.dart';
 
 class ControlView extends StatelessWidget {
   final String robotId;
@@ -58,16 +59,16 @@ class ControlView extends StatelessWidget {
                           label: 'X',
                           value: state.pose!.x,
                           onIncrement: () {
-                            context.read<RobotControlCubit>().sendMoveCommand({
-                              'axis': 'x',
-                              'delta': 1.0,
-                            });
+                            context.read<RobotControlCubit>().sendJogStart(
+                              axis: 'X',
+                              direction: '+',
+                            );
                           },
                           onDecrement: () {
-                            context.read<RobotControlCubit>().sendMoveCommand({
-                              'axis': 'x',
-                              'delta': -1.0,
-                            });
+                            context.read<RobotControlCubit>().sendJogStart(
+                              axis: 'X',
+                              direction: '-',
+                            );
                           },
                         ),
                         const SizedBox(height: AppSpacing.sm),
@@ -75,16 +76,16 @@ class ControlView extends StatelessWidget {
                           label: 'Y',
                           value: state.pose!.y,
                           onIncrement: () {
-                            context.read<RobotControlCubit>().sendMoveCommand({
-                              'axis': 'y',
-                              'delta': 1.0,
-                            });
+                            context.read<RobotControlCubit>().sendJogStart(
+                              axis: 'Y',
+                              direction: '+',
+                            );
                           },
                           onDecrement: () {
-                            context.read<RobotControlCubit>().sendMoveCommand({
-                              'axis': 'y',
-                              'delta': -1.0,
-                            });
+                            context.read<RobotControlCubit>().sendJogStart(
+                              axis: 'Y',
+                              direction: '-',
+                            );
                           },
                         ),
                         const SizedBox(height: AppSpacing.sm),
@@ -92,16 +93,16 @@ class ControlView extends StatelessWidget {
                           label: 'Z',
                           value: state.pose!.z,
                           onIncrement: () {
-                            context.read<RobotControlCubit>().sendMoveCommand({
-                              'axis': 'z',
-                              'delta': 1.0,
-                            });
+                            context.read<RobotControlCubit>().sendJogStart(
+                              axis: 'Z',
+                              direction: '+',
+                            );
                           },
                           onDecrement: () {
-                            context.read<RobotControlCubit>().sendMoveCommand({
-                              'axis': 'z',
-                              'delta': -1.0,
-                            });
+                            context.read<RobotControlCubit>().sendJogStart(
+                              axis: 'Z',
+                              direction: '-',
+                            );
                           },
                         ),
                       ],
@@ -115,16 +116,16 @@ class ControlView extends StatelessWidget {
                           label: 'W',
                           value: state.pose!.w,
                           onIncrement: () {
-                            context.read<RobotControlCubit>().sendMoveCommand({
-                              'axis': 'w',
-                              'delta': 1.0,
-                            });
+                            context.read<RobotControlCubit>().sendJogStart(
+                              axis: 'W',
+                              direction: '+',
+                            );
                           },
                           onDecrement: () {
-                            context.read<RobotControlCubit>().sendMoveCommand({
-                              'axis': 'w',
-                              'delta': -1.0,
-                            });
+                            context.read<RobotControlCubit>().sendJogStart(
+                              axis: 'W',
+                              direction: '-',
+                            );
                           },
                         ),
                         const SizedBox(height: AppSpacing.sm),
@@ -132,16 +133,16 @@ class ControlView extends StatelessWidget {
                           label: 'P',
                           value: state.pose!.p,
                           onIncrement: () {
-                            context.read<RobotControlCubit>().sendMoveCommand({
-                              'axis': 'p',
-                              'delta': 1.0,
-                            });
+                            context.read<RobotControlCubit>().sendJogStart(
+                              axis: 'P',
+                              direction: '+',
+                            );
                           },
                           onDecrement: () {
-                            context.read<RobotControlCubit>().sendMoveCommand({
-                              'axis': 'p',
-                              'delta': -1.0,
-                            });
+                            context.read<RobotControlCubit>().sendJogStart(
+                              axis: 'P',
+                              direction: '-',
+                            );
                           },
                         ),
                         const SizedBox(height: AppSpacing.sm),
@@ -149,16 +150,16 @@ class ControlView extends StatelessWidget {
                           label: 'R',
                           value: state.pose!.r,
                           onIncrement: () {
-                            context.read<RobotControlCubit>().sendMoveCommand({
-                              'axis': 'r',
-                              'delta': 1.0,
-                            });
+                            context.read<RobotControlCubit>().sendJogStart(
+                              axis: 'R',
+                              direction: '+',
+                            );
                           },
                           onDecrement: () {
-                            context.read<RobotControlCubit>().sendMoveCommand({
-                              'axis': 'r',
-                              'delta': -1.0,
-                            });
+                            context.read<RobotControlCubit>().sendJogStart(
+                              axis: 'R',
+                              direction: '-',
+                            );
                           },
                         ),
                       ],
@@ -171,18 +172,30 @@ class ControlView extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               JointsCard(joints: state.joints!),
               const SizedBox(height: AppSpacing.md),
+              GripperControl(
+                onOpen: () {
+                  context.read<RobotControlCubit>().setGripper('open');
+                },
+                onClose: () {
+                  context.read<RobotControlCubit>().setGripper('close');
+                },
+                onToggle: () {
+                  context.read<RobotControlCubit>().setGripper('toggle');
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
               ConfigCard(
                 userFrame: state.userFrame,
                 toolNumber: state.toolNumber,
-                activeProgram: state.activeProgram,
+                coordSystem: state.coordSystem,
                 onUserFrameChanged: (frame) {
-                  context.read<RobotControlCubit>().updateConfig(userFrame: frame);
+                  context.read<RobotControlCubit>().setUserFrame(frame);
                 },
                 onToolNumberChanged: (tool) {
-                  context.read<RobotControlCubit>().updateConfig(toolNumber: tool);
+                  context.read<RobotControlCubit>().setTool(tool);
                 },
-                onActiveProgramChanged: (program) {
-                  context.read<RobotControlCubit>().updateConfig(activeProgram: program);
+                onCoordSystemChanged: (coordSystem) {
+                  context.read<RobotControlCubit>().setCoordSystem(coordSystem);
                 },
               ),
             ],

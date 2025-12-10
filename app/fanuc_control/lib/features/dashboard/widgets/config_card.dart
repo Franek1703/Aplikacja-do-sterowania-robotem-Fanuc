@@ -1,26 +1,68 @@
 import 'package:flutter/material.dart';
 import '../../../common/widgets/app_card.dart';
+import '../../../common/widgets/app_text_field.dart';
 import '../../../config/constants/app_colors.dart';
 import '../../../config/constants/app_spacing.dart';
 import 'config_dropdown.dart';
 
-class ConfigCard extends StatelessWidget {
+class ConfigCard extends StatefulWidget {
   final int userFrame;
   final int toolNumber;
-  final String activeProgram;
+  final String coordSystem;
   final ValueChanged<int> onUserFrameChanged;
   final ValueChanged<int> onToolNumberChanged;
-  final ValueChanged<String> onActiveProgramChanged;
+  final ValueChanged<String> onCoordSystemChanged;
 
   const ConfigCard({
     super.key,
     required this.userFrame,
     required this.toolNumber,
-    required this.activeProgram,
+    required this.coordSystem,
     required this.onUserFrameChanged,
     required this.onToolNumberChanged,
-    required this.onActiveProgramChanged,
+    required this.onCoordSystemChanged,
   });
+
+  @override
+  State<ConfigCard> createState() => _ConfigCardState();
+}
+
+class _ConfigCardState extends State<ConfigCard> {
+  late final TextEditingController _userFrameController;
+  late final TextEditingController _toolNumberController;
+
+  @override
+  void initState() {
+    super.initState();
+    _userFrameController = TextEditingController(text: widget.userFrame.toString());
+    _toolNumberController = TextEditingController(text: widget.toolNumber.toString());
+  }
+
+  @override
+  void didUpdateWidget(ConfigCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userFrame != widget.userFrame) {
+      _userFrameController.text = widget.userFrame.toString();
+    }
+    if (oldWidget.toolNumber != widget.toolNumber) {
+      _toolNumberController.text = widget.toolNumber.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _userFrameController.dispose();
+    _toolNumberController.dispose();
+    super.dispose();
+  }
+
+  int? _parseInt(String value, int current, int min, int max) {
+    final parsed = int.tryParse(value);
+    if (parsed == null || parsed < min || parsed > max) {
+      return null;
+    }
+    return parsed;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,36 +79,36 @@ class ConfigCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          ConfigDropdown(
-            label: 'User Frame',
-            value: userFrame.toString(),
-            items: const ['0', '1', '2'],
-            labels: const [
-              'Frame 0 (World)',
-              'Frame 1 (Custom)',
-              'Frame 2 (Workpiece)',
-            ],
-            onChanged: (value) => onUserFrameChanged(int.parse(value)),
+          AppTextField(
+            label: 'User Frame (0-99)',
+            controller: _userFrameController,
+            keyboardType: TextInputType.number,
+            onChanged: (value) {
+              final frame = _parseInt(value, widget.userFrame, 0, 99);
+              if (frame != null) {
+                widget.onUserFrameChanged(frame);
+              }
+            },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppTextField(
+            label: 'Tool Number (0-99)',
+            controller: _toolNumberController,
+            keyboardType: TextInputType.number,
+            onChanged: (value) {
+              final tool = _parseInt(value, widget.toolNumber, 0, 99);
+              if (tool != null) {
+                widget.onToolNumberChanged(tool);
+              }
+            },
           ),
           const SizedBox(height: AppSpacing.sm),
           ConfigDropdown(
-            label: 'Tool Number',
-            value: toolNumber.toString(),
-            items: const ['1', '2', '3'],
-            labels: const [
-              'Tool 1 (Gripper)',
-              'Tool 2 (Welder)',
-              'Tool 3 (Camera)',
-            ],
-            onChanged: (value) => onToolNumberChanged(int.parse(value)),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          ConfigDropdown(
-            label: 'Active Program',
-            value: activeProgram,
-            items: const ['MAIN001', 'PICKUP', 'ASSEMBLY'],
-            labels: const ['MAIN001', 'PICKUP', 'ASSEMBLY'],
-            onChanged: onActiveProgramChanged,
+            label: 'Coordinate System',
+            value: widget.coordSystem,
+            items: const ['WORLD', 'USER', 'TOOL'],
+            labels: const ['WORLD', 'USER', 'TOOL'],
+            onChanged: widget.onCoordSystemChanged,
           ),
         ],
       ),

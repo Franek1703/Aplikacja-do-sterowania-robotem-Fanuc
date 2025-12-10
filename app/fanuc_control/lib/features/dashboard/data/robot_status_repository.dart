@@ -47,7 +47,7 @@ class RobotStatusRepository {
     });
   }
 
-  /// Stream robot config (userFrame, toolNumber, coordSystem, activeProgram)
+  /// Stream robot config (userFrame, toolNumber, coordSystem)
   Stream<Map<String, dynamic>> streamConfig(String deviceId, String robotId) {
     return _rtdb
         .streamValue('devices/$deviceId/robots/$robotId/config')
@@ -58,7 +58,6 @@ class RobotStatusRepository {
           'userFrame': 0,
           'toolNumber': 1,
           'coordSystem': 'WORLD',
-          'activeProgram': '',
         };
       }
       return Map<String, dynamic>.from(data);

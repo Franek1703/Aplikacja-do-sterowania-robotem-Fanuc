@@ -4,7 +4,11 @@ import '../../config/constants/app_colors.dart';
 import '../../config/constants/app_spacing.dart';
 import '../../features/auth/cubit/auth_cubit.dart';
 import '../../features/dashboard/cubit/robot_parameters_cubit.dart';
+import '../../features/dashboard/cubit/robot_control_cubit.dart';
 import '../../features/dashboard/widgets/parameter_card.dart';
+import '../../features/dashboard/widgets/robot_io_card.dart';
+import '../../features/dashboard/widgets/system_variables_card.dart';
+import '../../features/dashboard/widgets/diagnostics_card.dart';
 import '../../models/robot_parameter.dart';
 
 class ParametersView extends StatefulWidget {
@@ -39,6 +43,15 @@ class _ParametersViewState extends State<ParametersView> {
     final defaultParameters = [
       RobotParameter(
         id: '1',
+        name: 'FTP Password',
+        value: '',
+        type: ParameterType.string,
+        category: 'Network',
+        isLocked: false,
+        description: 'FTP access password for robot file system',
+      ),
+      RobotParameter(
+        id: '2',
         name: 'Override Speed',
         value: 100,
         type: ParameterType.number,
@@ -48,55 +61,7 @@ class _ParametersViewState extends State<ParametersView> {
         description: 'Global speed override percentage',
       ),
       RobotParameter(
-        id: '2',
-        name: 'Joint Speed Limit',
-        value: 250,
-        type: ParameterType.number,
-        unit: 'deg/sec',
-        category: 'Motion',
-        isLocked: false,
-        description: 'Maximum angular velocity for joints',
-      ),
-      RobotParameter(
         id: '3',
-        name: 'Collision Detection',
-        value: true,
-        type: ParameterType.boolean,
-        category: 'Safety',
-        isLocked: true,
-        description: 'Enable/disable collision detection system',
-      ),
-      RobotParameter(
-        id: '4',
-        name: 'Emergency Stop Enabled',
-        value: true,
-        type: ParameterType.boolean,
-        category: 'Safety',
-        isLocked: true,
-        description: 'Emergency stop circuit status',
-      ),
-      RobotParameter(
-        id: '5',
-        name: 'Payload Weight',
-        value: 25.5,
-        type: ParameterType.number,
-        unit: 'kg',
-        category: 'Configuration',
-        isLocked: false,
-        description: 'Current tool and payload weight',
-      ),
-      RobotParameter(
-        id: '6',
-        name: 'TCP Offset X',
-        value: 0.0,
-        type: ParameterType.number,
-        unit: 'mm',
-        category: 'Configuration',
-        isLocked: false,
-        description: 'Tool center point X offset',
-      ),
-      RobotParameter(
-        id: '7',
         name: 'Auto Backup',
         value: true,
         type: ParameterType.boolean,
@@ -105,7 +70,7 @@ class _ParametersViewState extends State<ParametersView> {
         description: 'Automatic backup of programs',
       ),
       RobotParameter(
-        id: '8',
+        id: '4',
         name: 'Controller IP',
         value: '192.168.1.100',
         type: ParameterType.string,
@@ -115,13 +80,24 @@ class _ParametersViewState extends State<ParametersView> {
       ),
     ];
 
-    return BlocProvider(
-      create: (context) => RobotParametersCubit(
-        deviceId: widget.deviceId,
-        robotId: widget.robotId,
-        userId: userId,
-        initialParameters: defaultParameters,
-      ),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => RobotParametersCubit(
+            deviceId: widget.deviceId,
+            robotId: widget.robotId,
+            userId: userId,
+            initialParameters: defaultParameters,
+          ),
+        ),
+        BlocProvider(
+          create: (context) => RobotControlCubit(
+            deviceId: widget.deviceId,
+            robotId: widget.robotId,
+            userId: userId,
+          ),
+        ),
+      ],
       child: BlocBuilder<RobotParametersCubit, RobotParametersState>(
         builder: (context, state) {
           if (state.isLoading) {
@@ -161,25 +137,35 @@ class _ParametersViewState extends State<ParametersView> {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Robot Parameters',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Robot Parameters',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      Text(
-                        'Configure robot settings',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 14,
+                        Text(
+                          'Configure robot settings',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.help_outline),
+                    onPressed: () {
+                      _showSetupGuide(context);
+                    },
+                    color: AppColors.textSecondary,
+                    tooltip: 'Setup Guide',
                   ),
                 ],
               ),
@@ -241,10 +227,131 @@ class _ParametersViewState extends State<ParametersView> {
                       const SizedBox(height: AppSpacing.md),
                     ],
                   )),
+              const SizedBox(height: AppSpacing.lg),
+              // Robot I/O Section
+              RobotIOCard(
+                onGetRDO: (index) async {
+                  final cubit = context.read<RobotControlCubit>();
+                  return await cubit.getRDO(index);
+                },
+                onSetRDO: (index, value) async {
+                  final cubit = context.read<RobotControlCubit>();
+                  await cubit.setRDO(index, value);
+                },
+                onGetDOUT: (index) async {
+                  final cubit = context.read<RobotControlCubit>();
+                  return await cubit.getDOUT(index);
+                },
+                onSetDOUT: (index, value) async {
+                  final cubit = context.read<RobotControlCubit>();
+                  await cubit.setDOUT(index, value);
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // System Variables Section
+              SystemVariablesCard(
+                onGetSystemVar: (name) async {
+                  final cubit = context.read<RobotControlCubit>();
+                  return await cubit.getSystemVar(name);
+                },
+                onSetSystemVar: (name, value) async {
+                  final cubit = context.read<RobotControlCubit>();
+                  await cubit.setSystemVar(name, value);
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // Diagnostics Section
+              DiagnosticsCard(
+                onGetPowerConsumption: () async {
+                  final cubit = context.read<RobotControlCubit>();
+                  return await cubit.getPowerConsumption();
+                },
+                onGetRobotInfo: () async {
+                  final cubit = context.read<RobotControlCubit>();
+                  return await cubit.getRobotInfo();
+                },
+              ),
             ],
           ),
         );
         },
+      ),
+    );
+  }
+
+  void _showSetupGuide(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.cardBackground,
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline, color: AppColors.primaryYellow),
+            SizedBox(width: 8),
+            Text(
+              'Firebase Setup Guide',
+              style: TextStyle(color: AppColors.textPrimary),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'To configure parameters in Firebase:',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const Text(
+                '1. Firestore: Create parameter definitions at',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 4),
+              SelectableText(
+                '/robots/{robotId}/parameters/{parameterId}',
+                style: const TextStyle(
+                  color: AppColors.primaryYellow,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const Text(
+                '2. Realtime Database: Parameter values at',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 4),
+              SelectableText(
+                '/devices/{deviceId}/robots/{robotId}/parameters',
+                style: const TextStyle(
+                  color: AppColors.primaryYellow,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const Text(
+                'See docs/firebase_parameters_setup.md for detailed instructions.',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }

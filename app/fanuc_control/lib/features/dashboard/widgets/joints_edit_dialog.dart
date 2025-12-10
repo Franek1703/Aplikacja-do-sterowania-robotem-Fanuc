@@ -56,17 +56,10 @@ class _JointsEditDialogState extends State<JointsEditDialog> {
     final j6 = double.tryParse(_j6Controller.text) ?? widget.initialJoints.j6;
 
     // Send move command with joint values
-    context.read<RobotControlCubit>().sendMoveCommand({
-      'type': 'moveJoints',
-      'joints': {
-        'j1': j1,
-        'j2': j2,
-        'j3': j3,
-        'j4': j4,
-        'j5': j5,
-        'j6': j6,
-      },
-    });
+    context.read<RobotControlCubit>().sendMoveCommand(
+      mode: 'joint',
+      vals: [j1, j2, j3, j4, j5, j6],
+    );
 
     Navigator.of(context).pop();
   }

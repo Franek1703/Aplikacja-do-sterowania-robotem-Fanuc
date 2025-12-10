@@ -197,8 +197,6 @@ The following parameters should be created for each robot:
 **Configuration Category:**
 - `Payload Weight` (number, kg, default: 25.5)
 - `TCP Offset X` (number, mm, default: 0.0)
-- `TCP Offset Y` (number, mm, default: 0.0)
-- `TCP Offset Z` (number, mm, default: 0.0)
 
 **System Category:**
 - `Auto Backup` (boolean, default: true)

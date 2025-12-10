@@ -146,6 +146,21 @@ For each robot, create the following parameter documents:
 }
 ```
 
+**Parameter ID: `9` - FTP Password**
+```json
+{
+  "id": "9",
+  "name": "FTP Password",
+  "defaultValue": "",
+  "type": "string",
+  "category": "Network",
+  "isLocked": false,
+  "description": "FTP access password for robot file system"
+}
+```
+
+**Note:** FTP Password is stored in Firestore at `/robots/{robotId}/ftpPassword`, not in RTDB parameters. When updated, it modifies the robot document directly.
+
 ### How to Add in Firebase Console
 
 1. Go to **Firestore Database** in Firebase Console
@@ -215,6 +230,9 @@ The gateway should initialize these values when a robot is first connected. You 
     }
   }
 }
+```
+
+**Note:** Parameter ID `9` (FTP Password) is stored in Firestore at `/robots/{robotId}/ftpPassword`, not in RTDB. It should not be included in the RTDB parameters node.
 ```
 
 ### How to Add in Firebase Console

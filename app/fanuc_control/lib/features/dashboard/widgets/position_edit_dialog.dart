@@ -56,17 +56,10 @@ class _PositionEditDialogState extends State<PositionEditDialog> {
     final r = double.tryParse(_rController.text) ?? widget.initialPose.r;
 
     // Send move command with pose values
-    context.read<RobotControlCubit>().sendMoveCommand({
-      'type': 'movePose',
-      'pose': {
-        'x': x,
-        'y': y,
-        'z': z,
-        'w': w,
-        'p': p,
-        'r': r,
-      },
-    });
+    context.read<RobotControlCubit>().sendMoveCommand(
+      mode: 'pose',
+      vals: [x, y, z, w, p, r],
+    );
 
     Navigator.of(context).pop();
   }
