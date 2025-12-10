@@ -5,7 +5,7 @@ import '../../../common/widgets/primary_button.dart';
 import '../../../common/widgets/secondary_button.dart';
 import '../../../config/constants/app_colors.dart';
 import '../../../config/constants/app_spacing.dart';
-import '../../../features/dashboard/cubit/dashboard_cubit.dart';
+import '../cubit/robot_control_cubit.dart';
 import '../../../models/robot_pose.dart';
 
 class JointsEditDialog extends StatefulWidget {
@@ -55,17 +55,19 @@ class _JointsEditDialogState extends State<JointsEditDialog> {
     final j5 = double.tryParse(_j5Controller.text) ?? widget.initialJoints.j5;
     final j6 = double.tryParse(_j6Controller.text) ?? widget.initialJoints.j6;
 
-    final newJoints = RobotJoints(
-      j1: j1,
-      j2: j2,
-      j3: j3,
-      j4: j4,
-      j5: j5,
-      j6: j6,
-      updatedAt: DateTime.now(),
-    );
+    // Send move command with joint values
+    context.read<RobotControlCubit>().sendMoveCommand({
+      'type': 'moveJoints',
+      'joints': {
+        'j1': j1,
+        'j2': j2,
+        'j3': j3,
+        'j4': j4,
+        'j5': j5,
+        'j6': j6,
+      },
+    });
 
-    context.read<DashboardCubit>().updateJoints(newJoints);
     Navigator.of(context).pop();
   }
 

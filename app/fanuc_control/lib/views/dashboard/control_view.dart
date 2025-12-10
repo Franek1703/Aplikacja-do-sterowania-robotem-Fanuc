@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../config/constants/app_colors.dart';
 import '../../config/constants/app_spacing.dart';
-import '../../features/dashboard/cubit/dashboard_cubit.dart';
+import '../../features/auth/cubit/auth_cubit.dart';
+import '../../features/dashboard/cubit/robot_control_cubit.dart';
 import '../../features/dashboard/widgets/axis_control.dart';
 import '../../features/dashboard/widgets/position_card.dart';
 import '../../features/dashboard/widgets/joints_card.dart';
@@ -15,11 +17,28 @@ class ControlView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<DashboardCubit, DashboardState>(
-      builder: (context, state) {
-        if (state.pose == null || state.joints == null) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    final userId = context.read<AuthCubit>().state.user?.uid ?? '';
+
+    return BlocProvider(
+      create: (context) => RobotControlCubit(
+        deviceId: deviceId,
+        robotId: robotId,
+        userId: userId,
+      ),
+      child: BlocBuilder<RobotControlCubit, RobotControlState>(
+        builder: (context, state) {
+          if (state.isLoading || state.pose == null || state.joints == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (state.error != null) {
+            return Center(
+              child: Text(
+                'Error: ${state.error}',
+                style: const TextStyle(color: AppColors.error),
+              ),
+            );
+          }
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -39,14 +58,16 @@ class ControlView extends StatelessWidget {
                           label: 'X',
                           value: state.pose!.x,
                           onIncrement: () {
-                            context.read<DashboardCubit>().updatePose(
-                              state.pose!.copyWith(x: state.pose!.x + 1),
-                            );
+                            context.read<RobotControlCubit>().sendMoveCommand({
+                              'axis': 'x',
+                              'delta': 1.0,
+                            });
                           },
                           onDecrement: () {
-                            context.read<DashboardCubit>().updatePose(
-                              state.pose!.copyWith(x: state.pose!.x - 1),
-                            );
+                            context.read<RobotControlCubit>().sendMoveCommand({
+                              'axis': 'x',
+                              'delta': -1.0,
+                            });
                           },
                         ),
                         const SizedBox(height: AppSpacing.sm),
@@ -54,14 +75,16 @@ class ControlView extends StatelessWidget {
                           label: 'Y',
                           value: state.pose!.y,
                           onIncrement: () {
-                            context.read<DashboardCubit>().updatePose(
-                              state.pose!.copyWith(y: state.pose!.y + 1),
-                            );
+                            context.read<RobotControlCubit>().sendMoveCommand({
+                              'axis': 'y',
+                              'delta': 1.0,
+                            });
                           },
                           onDecrement: () {
-                            context.read<DashboardCubit>().updatePose(
-                              state.pose!.copyWith(y: state.pose!.y - 1),
-                            );
+                            context.read<RobotControlCubit>().sendMoveCommand({
+                              'axis': 'y',
+                              'delta': -1.0,
+                            });
                           },
                         ),
                         const SizedBox(height: AppSpacing.sm),
@@ -69,14 +92,16 @@ class ControlView extends StatelessWidget {
                           label: 'Z',
                           value: state.pose!.z,
                           onIncrement: () {
-                            context.read<DashboardCubit>().updatePose(
-                              state.pose!.copyWith(z: state.pose!.z + 1),
-                            );
+                            context.read<RobotControlCubit>().sendMoveCommand({
+                              'axis': 'z',
+                              'delta': 1.0,
+                            });
                           },
                           onDecrement: () {
-                            context.read<DashboardCubit>().updatePose(
-                              state.pose!.copyWith(z: state.pose!.z - 1),
-                            );
+                            context.read<RobotControlCubit>().sendMoveCommand({
+                              'axis': 'z',
+                              'delta': -1.0,
+                            });
                           },
                         ),
                       ],
@@ -90,14 +115,16 @@ class ControlView extends StatelessWidget {
                           label: 'W',
                           value: state.pose!.w,
                           onIncrement: () {
-                            context.read<DashboardCubit>().updatePose(
-                              state.pose!.copyWith(w: state.pose!.w + 1),
-                            );
+                            context.read<RobotControlCubit>().sendMoveCommand({
+                              'axis': 'w',
+                              'delta': 1.0,
+                            });
                           },
                           onDecrement: () {
-                            context.read<DashboardCubit>().updatePose(
-                              state.pose!.copyWith(w: state.pose!.w - 1),
-                            );
+                            context.read<RobotControlCubit>().sendMoveCommand({
+                              'axis': 'w',
+                              'delta': -1.0,
+                            });
                           },
                         ),
                         const SizedBox(height: AppSpacing.sm),
@@ -105,14 +132,16 @@ class ControlView extends StatelessWidget {
                           label: 'P',
                           value: state.pose!.p,
                           onIncrement: () {
-                            context.read<DashboardCubit>().updatePose(
-                              state.pose!.copyWith(p: state.pose!.p + 1),
-                            );
+                            context.read<RobotControlCubit>().sendMoveCommand({
+                              'axis': 'p',
+                              'delta': 1.0,
+                            });
                           },
                           onDecrement: () {
-                            context.read<DashboardCubit>().updatePose(
-                              state.pose!.copyWith(p: state.pose!.p - 1),
-                            );
+                            context.read<RobotControlCubit>().sendMoveCommand({
+                              'axis': 'p',
+                              'delta': -1.0,
+                            });
                           },
                         ),
                         const SizedBox(height: AppSpacing.sm),
@@ -120,14 +149,16 @@ class ControlView extends StatelessWidget {
                           label: 'R',
                           value: state.pose!.r,
                           onIncrement: () {
-                            context.read<DashboardCubit>().updatePose(
-                              state.pose!.copyWith(r: state.pose!.r + 1),
-                            );
+                            context.read<RobotControlCubit>().sendMoveCommand({
+                              'axis': 'r',
+                              'delta': 1.0,
+                            });
                           },
                           onDecrement: () {
-                            context.read<DashboardCubit>().updatePose(
-                              state.pose!.copyWith(r: state.pose!.r - 1),
-                            );
+                            context.read<RobotControlCubit>().sendMoveCommand({
+                              'axis': 'r',
+                              'delta': -1.0,
+                            });
                           },
                         ),
                       ],
@@ -145,19 +176,20 @@ class ControlView extends StatelessWidget {
                 toolNumber: state.toolNumber,
                 activeProgram: state.activeProgram,
                 onUserFrameChanged: (frame) {
-                  context.read<DashboardCubit>().setUserFrame(frame);
+                  context.read<RobotControlCubit>().updateConfig(userFrame: frame);
                 },
                 onToolNumberChanged: (tool) {
-                  context.read<DashboardCubit>().setToolNumber(tool);
+                  context.read<RobotControlCubit>().updateConfig(toolNumber: tool);
                 },
                 onActiveProgramChanged: (program) {
-                  context.read<DashboardCubit>().setActiveProgram(program);
+                  context.read<RobotControlCubit>().updateConfig(activeProgram: program);
                 },
               ),
             ],
           ),
         );
-      },
+        },
+      ),
     );
   }
 }

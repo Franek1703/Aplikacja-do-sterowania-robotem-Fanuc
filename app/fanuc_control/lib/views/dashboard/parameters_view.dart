@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../config/constants/app_colors.dart';
 import '../../config/constants/app_spacing.dart';
-import '../../features/dashboard/cubit/dashboard_cubit.dart';
+import '../../features/auth/cubit/auth_cubit.dart';
+import '../../features/dashboard/cubit/robot_parameters_cubit.dart';
 import '../../features/dashboard/widgets/parameter_card.dart';
 import '../../models/robot_parameter.dart';
 
@@ -32,9 +33,111 @@ class _ParametersViewState extends State<ParametersView> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<DashboardCubit, DashboardState>(
-      builder: (context, state) {
-        final parameters = state.parameters;
+    final userId = context.read<AuthCubit>().state.user?.uid ?? '';
+    
+    // Use default parameters for now - in a real app these would come from Firestore
+    final defaultParameters = [
+      RobotParameter(
+        id: '1',
+        name: 'Override Speed',
+        value: 100,
+        type: ParameterType.number,
+        unit: '%',
+        category: 'Motion',
+        isLocked: false,
+        description: 'Global speed override percentage',
+      ),
+      RobotParameter(
+        id: '2',
+        name: 'Joint Speed Limit',
+        value: 250,
+        type: ParameterType.number,
+        unit: 'deg/sec',
+        category: 'Motion',
+        isLocked: false,
+        description: 'Maximum angular velocity for joints',
+      ),
+      RobotParameter(
+        id: '3',
+        name: 'Collision Detection',
+        value: true,
+        type: ParameterType.boolean,
+        category: 'Safety',
+        isLocked: true,
+        description: 'Enable/disable collision detection system',
+      ),
+      RobotParameter(
+        id: '4',
+        name: 'Emergency Stop Enabled',
+        value: true,
+        type: ParameterType.boolean,
+        category: 'Safety',
+        isLocked: true,
+        description: 'Emergency stop circuit status',
+      ),
+      RobotParameter(
+        id: '5',
+        name: 'Payload Weight',
+        value: 25.5,
+        type: ParameterType.number,
+        unit: 'kg',
+        category: 'Configuration',
+        isLocked: false,
+        description: 'Current tool and payload weight',
+      ),
+      RobotParameter(
+        id: '6',
+        name: 'TCP Offset X',
+        value: 0.0,
+        type: ParameterType.number,
+        unit: 'mm',
+        category: 'Configuration',
+        isLocked: false,
+        description: 'Tool center point X offset',
+      ),
+      RobotParameter(
+        id: '7',
+        name: 'Auto Backup',
+        value: true,
+        type: ParameterType.boolean,
+        category: 'System',
+        isLocked: false,
+        description: 'Automatic backup of programs',
+      ),
+      RobotParameter(
+        id: '8',
+        name: 'Controller IP',
+        value: '192.168.1.100',
+        type: ParameterType.string,
+        category: 'Network',
+        isLocked: false,
+        description: 'Controller network IP address',
+      ),
+    ];
+
+    return BlocProvider(
+      create: (context) => RobotParametersCubit(
+        deviceId: widget.deviceId,
+        robotId: widget.robotId,
+        userId: userId,
+        initialParameters: defaultParameters,
+      ),
+      child: BlocBuilder<RobotParametersCubit, RobotParametersState>(
+        builder: (context, state) {
+          if (state.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (state.error != null) {
+            return Center(
+              child: Text(
+                'Error: ${state.error}',
+                style: const TextStyle(color: AppColors.error),
+              ),
+            );
+          }
+
+          final parameters = state.parameters;
         final categories = parameters.map((p) => p.category).toSet().toList();
 
         return SingleChildScrollView(
@@ -112,7 +215,7 @@ class _ParametersViewState extends State<ParametersView> {
                                       : _editController.text;
                                   if (value != null) {
                                     context
-                                        .read<DashboardCubit>()
+                                        .read<RobotParametersCubit>()
                                         .updateParameter(param.id, value);
                                   }
                                   setState(() {
@@ -128,7 +231,7 @@ class _ParametersViewState extends State<ParametersView> {
                                 },
                                 onToggle: (value) {
                                   context
-                                      .read<DashboardCubit>()
+                                      .read<RobotParametersCubit>()
                                       .updateParameter(param.id, value);
                                 },
                                 onEditValueChanged: (value) {
@@ -141,7 +244,8 @@ class _ParametersViewState extends State<ParametersView> {
             ],
           ),
         );
-      },
+        },
+      ),
     );
   }
 }

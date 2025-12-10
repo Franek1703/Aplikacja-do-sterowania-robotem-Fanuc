@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../common/widgets/secondary_button.dart';
 import '../../config/constants/app_colors.dart';
 import '../../config/constants/app_spacing.dart';
-import '../../features/dashboard/cubit/dashboard_cubit.dart';
+import '../../features/dashboard/cubit/robot_alarms_cubit.dart';
 import '../../features/dashboard/widgets/alarm_card.dart';
 import '../../features/dashboard/widgets/no_alarms_card.dart';
 
@@ -19,9 +19,27 @@ class AlarmsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<DashboardCubit, DashboardState>(
-      builder: (context, state) {
-        final alarms = state.alarms;
+    return BlocProvider(
+      create: (context) => RobotAlarmsCubit(
+        deviceId: deviceId,
+        robotId: robotId,
+      ),
+      child: BlocBuilder<RobotAlarmsCubit, RobotAlarmsState>(
+        builder: (context, state) {
+          if (state.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (state.error != null) {
+            return Center(
+              child: Text(
+                'Error: ${state.error}',
+                style: const TextStyle(color: AppColors.error),
+              ),
+            );
+          }
+
+          final alarms = state.alarms;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -57,7 +75,7 @@ class AlarmsView extends StatelessWidget {
                     text: 'Refresh',
                     icon: Icons.refresh,
                     onPressed: () {
-                      // TODO: Implement refresh
+                      context.read<RobotAlarmsCubit>().refreshAlarms();
                     },
                   ),
                 ],
@@ -70,13 +88,15 @@ class AlarmsView extends StatelessWidget {
                 ...alarms.map((alarm) => AlarmCard(
                       alarm: alarm,
                       onClear: () {
-                        context.read<DashboardCubit>().clearAlarm(alarm.alarmId);
+                        // Alarms are cleared by the gateway, not the app
+                        // This could trigger a command if needed
                       },
                     )),
             ],
           ),
         );
-      },
+        },
+      ),
     );
   }
 }

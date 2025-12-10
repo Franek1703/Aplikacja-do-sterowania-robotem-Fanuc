@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../common/widgets/app_scaffold.dart';
 import '../../common/widgets/status_indicator.dart';
 import '../../config/constants/app_colors.dart';
-import '../../features/dashboard/cubit/dashboard_cubit.dart';
+import '../../features/dashboard/cubit/robot_info_cubit.dart';
 import '../../features/auth/cubit/auth_cubit.dart';
 import '../dashboard/control_view.dart';
 import '../dashboard/ftp_view.dart';
@@ -30,19 +30,16 @@ class _DashboardViewState extends State<DashboardView> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => DashboardCubit(
-        robotId: widget.robotId,
-        deviceId: widget.deviceId,
-      ),
-      child: BlocBuilder<AuthCubit, AuthState>(
-        builder: (context, authState) {
-          if (!authState.isAuthenticated) {
-            context.go('/login');
-            return const SizedBox.shrink();
-          }
+    return BlocBuilder<AuthCubit, AuthState>(
+      builder: (context, authState) {
+        if (!authState.isAuthenticated) {
+          context.go('/login');
+          return const SizedBox.shrink();
+        }
 
-          return BlocBuilder<DashboardCubit, DashboardState>(
+        return BlocProvider(
+          create: (context) => RobotInfoCubit(robotId: widget.robotId),
+          child: BlocBuilder<RobotInfoCubit, RobotInfoState>(
             builder: (context, state) {
               if (state.isLoading) {
                 return AppScaffold(
@@ -57,7 +54,7 @@ class _DashboardViewState extends State<DashboardView> {
                 );
               }
 
-              if (state.robot == null) {
+              if (state.error != null || state.robot == null) {
                 return AppScaffold(
                   appBar: AppBar(
                     leading: IconButton(
@@ -66,10 +63,10 @@ class _DashboardViewState extends State<DashboardView> {
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  body: const Center(
+                  body: Center(
                     child: Text(
-                      'Robot not found',
-                      style: TextStyle(color: AppColors.error),
+                      state.error ?? 'Robot not found',
+                      style: const TextStyle(color: AppColors.error),
                     ),
                   ),
                 );
@@ -172,9 +169,9 @@ class _DashboardViewState extends State<DashboardView> {
                 ),
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }

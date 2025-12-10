@@ -23,9 +23,6 @@ class FanucControlApp extends StatelessWidget {
         BlocProvider(
           create: (context) => AuthCubit(),
         ),
-        BlocProvider(
-          create: (context) => DevicesCubit(),
-        ),
       ],
       child: BlocBuilder<AuthCubit, AuthState>(
         builder: (context, state) {

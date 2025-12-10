@@ -5,7 +5,7 @@ import '../../../common/widgets/primary_button.dart';
 import '../../../common/widgets/secondary_button.dart';
 import '../../../config/constants/app_colors.dart';
 import '../../../config/constants/app_spacing.dart';
-import '../../../features/dashboard/cubit/dashboard_cubit.dart';
+import '../cubit/robot_control_cubit.dart';
 import '../../../models/robot_pose.dart';
 
 class PositionEditDialog extends StatefulWidget {
@@ -55,17 +55,19 @@ class _PositionEditDialogState extends State<PositionEditDialog> {
     final p = double.tryParse(_pController.text) ?? widget.initialPose.p;
     final r = double.tryParse(_rController.text) ?? widget.initialPose.r;
 
-    final newPose = RobotPose(
-      x: x,
-      y: y,
-      z: z,
-      w: w,
-      p: p,
-      r: r,
-      updatedAt: DateTime.now(),
-    );
+    // Send move command with pose values
+    context.read<RobotControlCubit>().sendMoveCommand({
+      'type': 'movePose',
+      'pose': {
+        'x': x,
+        'y': y,
+        'z': z,
+        'w': w,
+        'p': p,
+        'r': r,
+      },
+    });
 
-    context.read<DashboardCubit>().updatePose(newPose);
     Navigator.of(context).pop();
   }
 

@@ -130,5 +130,11 @@ class AuthRepository {
       'lastTimeSeen': FieldValue.serverTimestamp(),
     });
   }
+
+  Future<void> updateUserProfile(String userId, UserModel user) async {
+    await _firestore.collection('users').doc(userId).update(
+          user.toFirestore(),
+        );
+  }
 }
 

@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../common/widgets/app_card.dart';
 import '../../../config/constants/app_colors.dart';
 import '../../../config/constants/app_spacing.dart';
-import '../../../features/dashboard/cubit/dashboard_cubit.dart';
+import '../cubit/robot_control_cubit.dart';
 import '../../../models/robot_pose.dart';
 import 'joints_edit_dialog.dart';
 import 'pose_value_tile.dart';
@@ -17,7 +17,7 @@ class JointsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       onTap: () {
-        final cubit = context.read<DashboardCubit>();
+        final cubit = context.read<RobotControlCubit>();
         showDialog(
           context: context,
           builder: (dialogContext) => BlocProvider.value(

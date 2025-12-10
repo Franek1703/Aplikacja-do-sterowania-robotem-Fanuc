@@ -21,52 +21,56 @@ class DevicesListView extends StatelessWidget {
             return const SizedBox.shrink();
           }
 
-          return AppScaffold(
-            appBar: AppBar(
-              title: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.yellowOverlay,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.factory,
-                      color: AppColors.primaryYellow,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('FANUC Controller'),
-                      Text(
-                        'Remote Device Management',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
+          final userId = authState.user!.uid;
+
+          return BlocProvider(
+            create: (context) => DevicesCubit(userId: userId),
+            child: AppScaffold(
+              appBar: AppBar(
+                title: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.yellowOverlay,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ],
+                      child: const Icon(
+                        Icons.factory,
+                        color: AppColors.primaryYellow,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('FANUC Controller'),
+                        Text(
+                          'Remote Device Management',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.person),
+                    onPressed: () => context.push('/account'),
+                    color: AppColors.textSecondary,
                   ),
                 ],
               ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.person),
-                  onPressed: () => context.push('/account'),
-                  color: AppColors.textSecondary,
-                ),
-              ],
-            ),
-            body: BlocBuilder<DevicesCubit, DevicesState>(
+              body: BlocBuilder<DevicesCubit, DevicesState>(
               builder: (context, state) {
                 if (state.isLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
-
+              
                 if (state.error != null) {
                   return Center(
                     child: Text(
@@ -75,24 +79,30 @@ class DevicesListView extends StatelessWidget {
                     ),
                   );
                 }
-
-                return Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: GridView.builder(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: AppSpacing.md,
-                      mainAxisSpacing: AppSpacing.md,
-                      childAspectRatio: 0.85,
+              
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    await context.read<DevicesCubit>().refreshDevices(userId);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: GridView.builder(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: AppSpacing.md,
+                        mainAxisSpacing: AppSpacing.md,
+                        childAspectRatio: 0.85,
+                      ),
+                      itemCount: state.devices.length,
+                      itemBuilder: (context, index) {
+                        final device = state.devices[index];
+                        return _DeviceCard(device: device);
+                      },
                     ),
-                    itemCount: state.devices.length,
-                    itemBuilder: (context, index) {
-                      final device = state.devices[index];
-                      return _DeviceCard(device: device);
-                    },
                   ),
                 );
               },
+                          ),
             ),
           );
         },

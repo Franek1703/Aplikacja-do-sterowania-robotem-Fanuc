@@ -156,7 +156,69 @@ Gateway:
 
 ---
 
-### 2.4 Robot Alarms History (Optional)
+### 2.4 Robot Parameters (Configuration Templates)
+
+**Collection:** `/robots/{robotId}/parameters/{parameterId}`
+
+Purpose: store **parameter definitions and default values** for each robot. These are templates that define what parameters are available and their default values.
+
+**Note:** Current parameter values are stored in RTDB (see section 3.5). This Firestore collection stores the parameter schema/definitions.
+
+Example:
+
+```jsonc
+{
+  "id": "1",
+  "name": "Override Speed",
+  "defaultValue": 100,
+  "type": "number",              // "number" | "boolean" | "string"
+  "unit": "%",
+  "category": "Motion",          // "Motion" | "Safety" | "Configuration" | "System" | "Network"
+  "isLocked": false,             // true = cannot be changed by user
+  "description": "Global speed override percentage",
+  "minValue": 0,                 // optional, for number type
+  "maxValue": 200,               // optional, for number type
+  "allowedValues": null           // optional, for string type (array of allowed values)
+}
+```
+
+**Default Parameters:**
+
+The following parameters should be created for each robot:
+
+**Motion Category:**
+- `Override Speed` (number, %, default: 100, range: 0-200)
+- `Joint Speed Limit` (number, deg/sec, default: 250)
+
+**Safety Category:**
+- `Collision Detection` (boolean, default: true, locked: true)
+- `Emergency Stop Enabled` (boolean, default: true, locked: true)
+
+**Configuration Category:**
+- `Payload Weight` (number, kg, default: 25.5)
+- `TCP Offset X` (number, mm, default: 0.0)
+- `TCP Offset Y` (number, mm, default: 0.0)
+- `TCP Offset Z` (number, mm, default: 0.0)
+
+**System Category:**
+- `Auto Backup` (boolean, default: true)
+
+**Network Category:**
+- `Controller IP` (string, default: "192.168.1.100")
+
+Mobile app:
+
+* Reads parameter definitions from Firestore when loading the parameters view.
+* Uses these to display the parameter UI with proper types, units, and validation.
+
+Gateway:
+
+* Can read parameter definitions to understand available parameters.
+* Can validate parameter updates against definitions (min/max, allowed values).
+
+---
+
+### 2.5 Robot Alarms History (Optional)
 
 **Collection:** `/robotAlarms/{alarmEventId}`
 
@@ -363,6 +425,89 @@ Mobile app:
 
 ---
 
+### 3.5 Robot Parameters (Live Values)
+
+**Path:** `/devices/{deviceId}/robots/{robotId}/parameters/{parameterId}`
+
+Purpose: store **current parameter values** that can be updated in real-time.
+
+**Note:** Parameter definitions are in Firestore (see section 2.4). This RTDB path stores the actual current values.
+
+Example:
+
+```jsonc
+{
+  "id": "1",
+  "value": 100,                  // current value (can be number, boolean, or string)
+  "updatedAt": 1732023120,
+  "updatedBy": "uid123"
+}
+```
+
+**Alternative structure (all parameters in one node):**
+
+```jsonc
+{
+  "parameters": {
+    "1": { "value": 100, "updatedAt": 1732023120 },
+    "2": { "value": 250, "updatedAt": 1732023115 },
+    "3": { "value": true, "updatedAt": 1732023100 },
+    "4": { "value": true, "updatedAt": 1732023100 },
+    "5": { "value": 25.5, "updatedAt": 1732023090 },
+    "6": { "value": 0.0, "updatedAt": 1732023080 },
+    "7": { "value": true, "updatedAt": 1732023070 },
+    "8": { "value": "192.168.1.100", "updatedAt": 1732023060 }
+  }
+}
+```
+
+**Gateway behavior:**
+
+* On robot connection:
+  * Reads parameter definitions from Firestore `/robots/{robotId}/parameters`.
+  * Initializes RTDB parameters with default values if not present.
+* Periodically:
+  * Reads current parameter values from robot (if supported).
+  * Updates RTDB with actual robot values.
+* On parameter update command:
+  * Updates robot parameter via RobotAdapter.
+  * Updates RTDB with new value.
+
+**Mobile app:**
+
+* Subscribes to `/devices/{deviceId}/robots/{robotId}/parameters` for real-time updates.
+* Sends `updateParameter` commands to change parameter values.
+* Displays parameters grouped by category from Firestore definitions.
+
+**Parameter Update Command:**
+
+When a user updates a parameter, the app sends a command:
+
+**Path:** `/devices/{deviceId}/robots/{robotId}/commands/{commandId}`
+
+```jsonc
+{
+  "type": "updateParameter",
+  "status": "pending",
+  "createdAt": 1732023200,
+  "createdBy": "uid123",
+  "payload": {
+    "parameterId": "1",
+    "value": 150
+  },
+  "result": {
+    "code": null,
+    "message": null,
+    "data": null,
+    "completedAt": null
+  }
+}
+```
+
+Gateway processes this command and updates both the robot and RTDB.
+
+---
+
 ## 4. Commands in RTDB
 
 Commands implement the **request/response** pattern between mobile app and gateway.
@@ -476,6 +621,9 @@ Mobile app:
 * `/robots/{robotId}`
 
   * Robot configuration: IP, ports, FTP credentials, model, simulation mode.
+* `/robots/{robotId}/parameters/{parameterId}`
+
+  * Parameter definitions and default values (templates).
 * `/robotAlarms/{alarmEventId}` (optional)
 
   * Historical alarm log.
@@ -504,6 +652,9 @@ Mobile app:
 * `/devices/{deviceId}/robots/{robotId}/alarms/active`
 
   * Active alarm list.
+* `/devices/{deviceId}/robots/{robotId}/parameters`
+
+  * Current parameter values (live, updatable).
 * `/devices/{deviceId}/robots/{robotId}/commands`
 
   * Robot command queue with status & result.

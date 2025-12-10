@@ -19,6 +19,9 @@ class ConfigDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Ensure the value exists in items, otherwise use null or first item
+    final validValue = items.contains(value) ? value : (items.isNotEmpty ? items.first : null);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -28,7 +31,7 @@ class ConfigDropdown extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: value,
+          value: validValue,
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.surface,

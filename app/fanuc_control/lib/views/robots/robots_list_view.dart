@@ -56,19 +56,21 @@ class RobotsListView extends StatelessWidget {
                   );
                 }
 
-                return Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: ListView.separated(
-                    itemCount: state.robots.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: AppSpacing.sm),
-                    itemBuilder: (context, index) {
-                      final robot = state.robots[index];
-                      return _RobotCard(
-                        robot: robot,
-                        deviceId: deviceId,
-                      );
-                    },
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    await context.read<RobotsCubit>().refreshRobots(deviceId);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: ListView.separated(
+                      itemCount: state.robots.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: AppSpacing.sm),
+                      itemBuilder: (context, index) {
+                        final robot = state.robots[index];
+                        return _RobotCard(robot: robot, deviceId: deviceId);
+                      },
+                    ),
                   ),
                 );
               },
@@ -84,10 +86,7 @@ class _RobotCard extends StatelessWidget {
   final robot;
   final String deviceId;
 
-  const _RobotCard({
-    required this.robot,
-    required this.deviceId,
-  });
+  const _RobotCard({required this.robot, required this.deviceId});
 
   @override
   Widget build(BuildContext context) {
@@ -105,11 +104,7 @@ class _RobotCard extends StatelessWidget {
               gradient: AppColors.primaryGradient,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
-              Icons.smart_toy,
-              color: Colors.black,
-              size: 24,
-            ),
+            child: const Icon(Icons.smart_toy, color: Colors.black, size: 24),
           ),
           const SizedBox(width: AppSpacing.md),
           // Robot info
@@ -143,4 +138,3 @@ class _RobotCard extends StatelessWidget {
     );
   }
 }
-

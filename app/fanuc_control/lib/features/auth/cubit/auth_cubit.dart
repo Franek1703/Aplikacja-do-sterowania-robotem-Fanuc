@@ -149,8 +149,24 @@ class AuthCubit extends Cubit<AuthState> {
 
   /// Update user profile
   Future<void> updateUser(UserModel updatedUser) async {
-    if (state.isAuthenticated) {
-      emit(AuthState.authenticated(updatedUser));
+    if (!state.isAuthenticated) {
+      emit(const AuthState.error('User not authenticated'));
+      return;
+    }
+
+    emit(const AuthState.loading());
+
+    try {
+      await _authRepository.updateUserProfile(updatedUser.uid, updatedUser);
+      // Reload user profile from Firestore
+      final userProfile = await _authRepository.getUserProfile(updatedUser.uid);
+      if (userProfile != null) {
+        emit(AuthState.authenticated(userProfile));
+      } else {
+        emit(const AuthState.error('Failed to reload user profile'));
+      }
+    } catch (e) {
+      emit(AuthState.error(e.toString()));
     }
   }
 }
