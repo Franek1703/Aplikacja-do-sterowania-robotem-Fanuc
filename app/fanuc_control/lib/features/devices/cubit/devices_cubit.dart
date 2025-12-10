@@ -43,6 +43,18 @@ class DevicesCubit extends Cubit<DevicesState> {
     }
   }
 
+  /// Connect to a device by adding current user as a member
+  Future<void> connectToDevice(String deviceId, String userId) async {
+    try {
+      await _deviceRepository.addMemberToDevice(deviceId, userId);
+      // Refresh devices list to show the newly connected device
+      await refreshDevices(userId);
+    } catch (e) {
+      emit(DevicesState.error(e.toString()));
+      rethrow;
+    }
+  }
+
   @override
   Future<void> close() {
     _devicesSubscription?.cancel();

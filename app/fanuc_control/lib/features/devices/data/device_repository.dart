@@ -105,6 +105,45 @@ class DeviceRepository {
     });
   }
 
+  /// Add a user as a member to a device
+  /// Updates the device's members array in Firestore
+  Future<void> addMemberToDevice(String deviceId, String userId) async {
+    try {
+      // Check if device exists
+      final deviceDoc = await _firestore.getDocument('devices/$deviceId');
+      if (!deviceDoc.exists) {
+        throw Exception('Device not found');
+      }
+
+      // Get current members list
+      final data = deviceDoc.data();
+      if (data == null) {
+        throw Exception('Device data not found');
+      }
+
+      final currentMembers = (data['members'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [];
+
+      // Check if user is already a member
+      if (currentMembers.contains(userId)) {
+        throw Exception('User is already a member of this device');
+      }
+
+      // Add user to members array
+      currentMembers.add(userId);
+
+      // Update device document
+      await _firestore.updateDocument(
+        'devices/$deviceId',
+        {'members': currentMembers},
+      );
+    } catch (e) {
+      throw Exception('Failed to add member to device: $e');
+    }
+  }
+
   /// Convert Firestore document to Device model
   Device? _deviceFromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     try {

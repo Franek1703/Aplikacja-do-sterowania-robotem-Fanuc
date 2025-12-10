@@ -54,6 +54,36 @@ class RobotsCubit extends Cubit<RobotsState> {
     }
   }
 
+  /// Create a new robot
+  Future<void> createRobot({
+    required String deviceId,
+    required String name,
+    required String ipAddress,
+    required String ftpUser,
+    required String ftpPassword,
+    String? controller,
+    String? model,
+    int tcpPort = 18735,
+  }) async {
+    try {
+      await _robotRepository.createRobot(
+        deviceId: deviceId,
+        name: name,
+        ipAddress: ipAddress,
+        ftpUser: ftpUser,
+        ftpPassword: ftpPassword,
+        controller: controller,
+        model: model,
+        tcpPort: tcpPort,
+      );
+      // Refresh robots list to show the newly created robot
+      await refreshRobots(deviceId);
+    } catch (e) {
+      emit(RobotsState.error(e.toString()));
+      rethrow;
+    }
+  }
+
   @override
   Future<void> close() {
     _robotsSubscription?.cancel();

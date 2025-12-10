@@ -130,6 +130,59 @@ class RobotRepository {
     });
   }
 
+  /// Create a new robot in Firestore
+  Future<Robot> createRobot({
+    required String deviceId,
+    required String name,
+    required String ipAddress,
+    required String ftpUser,
+    required String ftpPassword,
+    String? controller,
+    String? model,
+    int tcpPort = 18735,
+  }) async {
+    try {
+      // Generate robot ID (using timestamp-based ID)
+      final robotId = 'robot_${DateTime.now().millisecondsSinceEpoch}';
+
+      // Prepare robot data
+      final robotData = <String, dynamic>{
+        'deviceId': deviceId,
+        'name': name,
+        'ipAddress': ipAddress,
+        'tcpPort': tcpPort,
+        'ftpUser': ftpUser,
+        'ftpPassword': ftpPassword,
+        'simulation': false,
+        'isOnline': false,
+        'createdAt': _firestore.serverTimestamp(),
+      };
+
+      // Add optional fields
+      if (controller != null && controller.isNotEmpty) {
+        robotData['controller'] = controller;
+      }
+      if (model != null && model.isNotEmpty) {
+        robotData['model'] = model;
+      }
+
+      // Create robot document in Firestore
+      await _firestore.setDocument('robots/$robotId', robotData);
+
+      // Get the created robot
+      final createdDoc = await _firestore.getDocument('robots/$robotId');
+      final robot = _robotFromFirestore(createdDoc);
+
+      if (robot == null) {
+        throw Exception('Failed to create robot');
+      }
+
+      return robot;
+    } catch (e) {
+      throw Exception('Failed to create robot: $e');
+    }
+  }
+
   /// Convert Firestore document to Robot model
   Robot? _robotFromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     try {

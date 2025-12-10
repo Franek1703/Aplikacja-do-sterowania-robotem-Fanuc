@@ -3,6 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../common/widgets/app_scaffold.dart';
 import '../../common/widgets/app_card.dart';
+import '../../common/widgets/app_text_field.dart';
+import '../../common/widgets/primary_button.dart';
+import '../../common/widgets/secondary_button.dart';
 import '../../common/widgets/status_indicator.dart';
 import '../../config/constants/app_colors.dart';
 import '../../config/constants/app_spacing.dart';
@@ -84,21 +87,38 @@ class DevicesListView extends StatelessWidget {
                   onRefresh: () async {
                     await context.read<DevicesCubit>().refreshDevices(userId);
                   },
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: GridView.builder(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: AppSpacing.md,
-                        mainAxisSpacing: AppSpacing.md,
-                        childAspectRatio: 0.85,
+                  child: Stack(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: GridView.builder(
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: AppSpacing.md,
+                            mainAxisSpacing: AppSpacing.md,
+                            childAspectRatio: 0.85,
+                          ),
+                          itemCount: state.devices.length,
+                          itemBuilder: (context, index) {
+                            final device = state.devices[index];
+                            return _DeviceCard(device: device);
+                          },
+                        ),
                       ),
-                      itemCount: state.devices.length,
-                      itemBuilder: (context, index) {
-                        final device = state.devices[index];
-                        return _DeviceCard(device: device);
-                      },
-                    ),
+                      Positioned(
+                        bottom: 24,
+                        right: 24,
+                        child: FloatingActionButton.extended(
+                          onPressed: () => _showConnectDeviceDialog(context, userId),
+                          backgroundColor: AppColors.primaryYellow,
+                          icon: const Icon(Icons.add, color: Colors.black),
+                          label: const Text(
+                            'Connect Device',
+                            style: TextStyle(color: Colors.black),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -107,6 +127,98 @@ class DevicesListView extends StatelessWidget {
           );
         },
       );
+  }
+
+  void _showConnectDeviceDialog(BuildContext context, String userId) {
+    final deviceIdController = TextEditingController();
+    String? errorText;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: AppColors.cardBackground,
+          title: const Row(
+            children: [
+              Icon(Icons.add_circle_outline, color: AppColors.primaryYellow),
+              SizedBox(width: 8),
+              Text(
+                'Connect to Device',
+                style: TextStyle(color: AppColors.textPrimary),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Enter the Device ID to connect:',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppTextField(
+                  label: 'Device ID',
+                  controller: deviceIdController,
+                  hint: 'e.g., rpi_mac_001122aabbcc',
+                  errorText: errorText,
+                  prefixIcon: const Icon(
+                    Icons.devices,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            SecondaryButton(
+              text: 'Cancel',
+              icon: Icons.close,
+              onPressed: () => Navigator.pop(context),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            PrimaryButton(
+              text: 'Connect',
+              icon: Icons.check,
+              onPressed: () async {
+                final deviceId = deviceIdController.text.trim();
+                if (deviceId.isEmpty) {
+                  setState(() {
+                    errorText = 'Device ID is required';
+                  });
+                  return;
+                }
+
+                setState(() {
+                  errorText = null;
+                });
+
+                try {
+                  await context.read<DevicesCubit>().connectToDevice(deviceId, userId);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Successfully connected to device'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  setState(() {
+                    errorText = e.toString().replaceFirst('Exception: ', '');
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
