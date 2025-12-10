@@ -8,6 +8,8 @@ import '../../common/widgets/primary_button.dart';
 import '../../config/constants/app_colors.dart';
 import '../../config/constants/app_spacing.dart';
 import '../../features/auth/cubit/auth_cubit.dart';
+import '../../features/auth/widgets/login_header.dart';
+import '../../features/auth/widgets/login_tab_button.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -70,39 +72,7 @@ class _LoginViewState extends State<LoginView> {
               constraints: const BoxConstraints(maxWidth: 400),
               child: Column(
                 children: [
-                  // Logo/Header
-                  const SizedBox(height: 40),
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    decoration: BoxDecoration(
-                      color: AppColors.yellowOverlay,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(
-                      Icons.factory,
-                      size: 48,
-                      color: AppColors.primaryYellow,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  const Text(
-                    'FANUC Controller',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  const Text(
-                    'Remote Robot Management Platform',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-
+                  const LoginHeader(),
                   // Login/Signup Card
                   AppCard(
                     padding: const EdgeInsets.all(AppSpacing.lg),
@@ -117,14 +87,14 @@ class _LoginViewState extends State<LoginView> {
                           child: Row(
                             children: [
                               Expanded(
-                                child: _TabButton(
+                                child: LoginTabButton(
                                   label: 'Log In',
                                   isSelected: _selectedTab == 0,
                                   onTap: () => setState(() => _selectedTab = 0),
                                 ),
                               ),
                               Expanded(
-                                child: _TabButton(
+                                child: LoginTabButton(
                                   label: 'Sign Up',
                                   isSelected: _selectedTab == 1,
                                   onTap: () => setState(() => _selectedTab = 1),
@@ -213,39 +183,3 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 }
-
-class _TabButton extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _TabButton({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryYellow : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: isSelected ? Colors.black : AppColors.textSecondary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
-}
-

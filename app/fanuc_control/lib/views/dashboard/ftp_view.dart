@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../common/widgets/app_card.dart';
 import '../../common/widgets/primary_button.dart';
 import '../../config/constants/app_colors.dart';
 import '../../config/constants/app_spacing.dart';
 import '../../features/dashboard/cubit/dashboard_cubit.dart';
+import '../../features/dashboard/widgets/ftp_file_item.dart';
 import '../../models/ftp_file.dart';
 
 class FtpView extends StatefulWidget {
@@ -71,7 +71,7 @@ class _FtpViewState extends State<FtpView> {
               ),
               const SizedBox(height: AppSpacing.md),
               // File list
-              ...files.map((file) => _FileItem(
+              ...files.map((file) => FtpFileItem(
                     file: file,
                     onTap: () {
                       if (file.type == FtpFileType.folder) {
@@ -133,77 +133,3 @@ class _FtpViewState extends State<FtpView> {
     );
   }
 }
-
-class _FileItem extends StatelessWidget {
-  final FtpFile file;
-  final VoidCallback onTap;
-
-  const _FileItem({
-    required this.file,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: file.type == FtpFileType.folder
-                  ? AppColors.yellowOverlay
-                  : AppColors.info.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              file.type == FtpFileType.folder
-                  ? Icons.folder
-                  : file.name.endsWith('.TP')
-                      ? Icons.code
-                      : Icons.insert_drive_file,
-              color: file.type == FtpFileType.folder
-                  ? AppColors.primaryYellow
-                  : AppColors.info,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  file.name,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (file.type == FtpFileType.file && file.size != null)
-                  Text(
-                    '${file.size} • ${file.modified ?? ''}',
-                    style: const TextStyle(
-                      color: AppColors.textTertiary,
-                      fontSize: 12,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (file.type == FtpFileType.folder)
-            const Icon(Icons.chevron_right, color: AppColors.textTertiary)
-          else
-            IconButton(
-              icon: const Icon(Icons.visibility),
-              onPressed: onTap,
-              color: AppColors.textSecondary,
-            ),
-        ],
-      ),
-    );
-  }
-}
-

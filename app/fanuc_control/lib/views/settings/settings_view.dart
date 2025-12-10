@@ -9,6 +9,8 @@ import '../../common/widgets/secondary_button.dart';
 import '../../config/constants/app_colors.dart';
 import '../../config/constants/app_spacing.dart';
 import '../../features/auth/cubit/auth_cubit.dart';
+import '../../features/settings/widgets/read_only_field.dart';
+import '../../features/settings/widgets/stat_item.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -163,13 +165,13 @@ class _SettingsViewState extends State<SettingsView> {
                         keyboardType: TextInputType.emailAddress,
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      _ReadOnlyField(
+                      ReadOnlyField(
                         label: 'Company',
                         value: user.company ?? 'N/A',
                         icon: Icons.business,
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      _ReadOnlyField(
+                      ReadOnlyField(
                         label: 'Account Type',
                         value: user.role,
                         icon: Icons.shield,
@@ -227,20 +229,20 @@ class _SettingsViewState extends State<SettingsView> {
                       const SizedBox(height: AppSpacing.md),
                       Row(
                         children: [
-                          Expanded(
-                            child: _StatItem(
+                          const Expanded(
+                            child: StatItem(
                               value: '4',
                               label: 'Devices',
                             ),
                           ),
-                          Expanded(
-                            child: _StatItem(
+                          const Expanded(
+                            child: StatItem(
                               value: '12',
                               label: 'Robots',
                             ),
                           ),
-                          Expanded(
-                            child: _StatItem(
+                          const Expanded(
+                            child: StatItem(
                               value: '98%',
                               label: 'Uptime',
                             ),
@@ -338,91 +340,3 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 }
-
-class _ReadOnlyField extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
-  const _ReadOnlyField({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 14,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, size: 16, color: AppColors.textTertiary),
-              const SizedBox(width: 8),
-              Text(
-                value,
-                style: const TextStyle(color: AppColors.textPrimary),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatItem extends StatelessWidget {
-  final String value;
-  final String label;
-
-  const _StatItem({
-    required this.value,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: AppColors.primaryYellow,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
