@@ -60,6 +60,7 @@ class AppTextField extends StatelessWidget {
             hintStyle: const TextStyle(color: AppColors.textTertiary),
             prefixIcon: prefixIcon,
             suffixIcon: suffixIcon,
+            suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
             errorText: errorText,
             filled: true,
             fillColor: AppColors.surface,

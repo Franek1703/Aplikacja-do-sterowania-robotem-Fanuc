@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'config/routing/app_router.dart';
 import 'config/themes/app_theme.dart';
 import 'features/auth/cubit/auth_cubit.dart';
+import 'features/devices/cubit/devices_cubit.dart';
 
 void main() {
   runApp(const FanucControlApp());
@@ -13,8 +14,15 @@ class FanucControlApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => AuthCubit(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => AuthCubit(),
+        ),
+        BlocProvider(
+          create: (context) => DevicesCubit(),
+        ),
+      ],
       child: MaterialApp.router(
         title: 'FANUC Controller',
         debugShowCheckedModeBanner: false,

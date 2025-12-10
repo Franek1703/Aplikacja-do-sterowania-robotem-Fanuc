@@ -49,7 +49,7 @@ class _DashboardViewState extends State<DashboardView> {
                   appBar: AppBar(
                     leading: IconButton(
                       icon: const Icon(Icons.arrow_back),
-                      onPressed: () => context.go('/robots?deviceId=${widget.deviceId}'),
+                      onPressed: () => context.pop(),
                       color: AppColors.textSecondary,
                     ),
                   ),
@@ -62,7 +62,7 @@ class _DashboardViewState extends State<DashboardView> {
                   appBar: AppBar(
                     leading: IconButton(
                       icon: const Icon(Icons.arrow_back),
-                      onPressed: () => context.go('/robots?deviceId=${widget.deviceId}'),
+                      onPressed: () => context.pop(),
                       color: AppColors.textSecondary,
                     ),
                   ),
@@ -79,7 +79,7 @@ class _DashboardViewState extends State<DashboardView> {
                 appBar: AppBar(
                   leading: IconButton(
                     icon: const Icon(Icons.arrow_back),
-                    onPressed: () => context.go('/robots?deviceId=${widget.deviceId}'),
+                    onPressed: () => context.pop(),
                     color: AppColors.textSecondary,
                   ),
                   title: Column(
@@ -105,7 +105,7 @@ class _DashboardViewState extends State<DashboardView> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.person),
-                      onPressed: () => context.go('/account'),
+                      onPressed: () => context.push('/account'),
                       color: AppColors.textSecondary,
                     ),
                   ],

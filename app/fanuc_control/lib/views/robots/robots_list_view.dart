@@ -29,14 +29,14 @@ class RobotsListView extends StatelessWidget {
             appBar: AppBar(
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () => context.go('/devices'),
+                onPressed: () => context.pop(),
                 color: AppColors.textSecondary,
               ),
               title: const Text('Connected Robots'),
               actions: [
                 IconButton(
                   icon: const Icon(Icons.person),
-                  onPressed: () => context.go('/account'),
+                  onPressed: () => context.push('/account'),
                   color: AppColors.textSecondary,
                 ),
               ],
@@ -93,7 +93,7 @@ class _RobotCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       onTap: () {
-        context.go('/dashboard?robotId=${robot.robotId}&deviceId=$deviceId');
+        context.push('/dashboard?robotId=${robot.robotId}&deviceId=$deviceId');
       },
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Row(

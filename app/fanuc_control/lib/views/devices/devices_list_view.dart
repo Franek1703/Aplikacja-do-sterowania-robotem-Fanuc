@@ -14,9 +14,7 @@ class DevicesListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => DevicesCubit(),
-      child: BlocBuilder<AuthCubit, AuthState>(
+    return BlocBuilder<AuthCubit, AuthState>(
         builder: (context, authState) {
           if (!authState.isAuthenticated) {
             context.go('/login');
@@ -58,7 +56,7 @@ class DevicesListView extends StatelessWidget {
               actions: [
                 IconButton(
                   icon: const Icon(Icons.person),
-                  onPressed: () => context.go('/account'),
+                  onPressed: () => context.push('/account'),
                   color: AppColors.textSecondary,
                 ),
               ],
@@ -98,8 +96,7 @@ class DevicesListView extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
+      );
   }
 }
 
@@ -112,7 +109,7 @@ class _DeviceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       onTap: () {
-        context.go('/robots?deviceId=${device.deviceId}');
+        context.push('/robots?deviceId=${device.deviceId}');
       },
       padding: EdgeInsets.zero,
       child: Column(

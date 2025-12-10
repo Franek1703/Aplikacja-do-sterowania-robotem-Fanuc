@@ -49,7 +49,7 @@ class _SettingsViewState extends State<SettingsView> {
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.go('/devices'),
+              onPressed: () => context.pop(),
               color: AppColors.textSecondary,
             ),
             title: const Column(
