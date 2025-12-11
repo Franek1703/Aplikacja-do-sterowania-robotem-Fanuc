@@ -3,7 +3,7 @@ from __future__ import annotations
 import socket
 from typing import Literal, Union, List, Optional
 
-from fanuc_package.src.robot.ftp import RobotFTP, RobotFTPError
+from .ftp import RobotFTP, RobotFTPError
 
 
 class FanucError(Exception):

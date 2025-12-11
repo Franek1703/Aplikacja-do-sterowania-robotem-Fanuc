@@ -1,0 +1,31 @@
+# Systemd service file for FANUC Firebase Gateway
+# Copy to /etc/systemd/system/fanuc-gateway.service
+# Then run:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable fanuc-gateway
+#   sudo systemctl start fanuc-gateway
+
+[Unit]
+Description=FANUC Firebase Gateway
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/fanuc_firebase_gateway
+EnvironmentFile=/home/pi/fanuc_firebase_gateway/.env
+ExecStart=/usr/bin/python3 -m fanuc_firebase_gateway.main
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+

@@ -186,23 +186,15 @@ Example:
 
 The following parameters should be created for each robot:
 
+**Network Category:**
+- `FTP Password` (string, default: "", parameter ID: "1")
+- `Controller IP` (string, default: "192.168.1.100", parameter ID: "4")
+
 **Motion Category:**
-- `Override Speed` (number, %, default: 100, range: 0-200)
-- `Joint Speed Limit` (number, deg/sec, default: 250)
-
-**Safety Category:**
-- `Collision Detection` (boolean, default: true, locked: true)
-- `Emergency Stop Enabled` (boolean, default: true, locked: true)
-
-**Configuration Category:**
-- `Payload Weight` (number, kg, default: 25.5)
-- `TCP Offset X` (number, mm, default: 0.0)
+- `Override Speed` (number, %, default: 100, range: 0-200, parameter ID: "2")
 
 **System Category:**
-- `Auto Backup` (boolean, default: true)
-
-**Network Category:**
-- `Controller IP` (string, default: "192.168.1.100")
+- `Auto Backup` (boolean, default: true, parameter ID: "3")
 
 Mobile app:
 
@@ -447,14 +439,10 @@ Example:
 ```jsonc
 {
   "parameters": {
-    "1": { "value": 100, "updatedAt": 1732023120 },
-    "2": { "value": 250, "updatedAt": 1732023115 },
+    "1": { "value": "", "updatedAt": 1732023120 },
+    "2": { "value": 100, "updatedAt": 1732023115 },
     "3": { "value": true, "updatedAt": 1732023100 },
-    "4": { "value": true, "updatedAt": 1732023100 },
-    "5": { "value": 25.5, "updatedAt": 1732023090 },
-    "6": { "value": 0.0, "updatedAt": 1732023080 },
-    "7": { "value": true, "updatedAt": 1732023070 },
-    "8": { "value": "192.168.1.100", "updatedAt": 1732023060 }
+    "4": { "value": "192.168.1.100", "updatedAt": 1732023090 }
   }
 }
 ```

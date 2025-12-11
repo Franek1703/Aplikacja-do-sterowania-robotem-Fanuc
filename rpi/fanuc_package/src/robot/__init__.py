@@ -1,4 +1,4 @@
-from fanuc_package.src.robot.robot import Robot, FanucError
-from fanuc_package.src.robot.robotapp import RobotApp
-from fanuc_package.src.robot.ftp import RobotFTP, RobotFTPError, AlarmLogType
-from fanuc_package.src.robot.alarm_parser import Alarm, AlarmLogParser
+from .robot import Robot, FanucError
+from .robotapp import RobotApp
+from .ftp import RobotFTP, RobotFTPError, AlarmLogType
+from .alarm_parser import Alarm, AlarmLogParser
