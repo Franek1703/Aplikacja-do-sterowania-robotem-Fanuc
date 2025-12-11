@@ -7,6 +7,10 @@ firebase-admin>=6.0.0
 # Configuration
 python-dotenv>=1.0.0
 
+# FANUC Robot Package (local editable install)
+# Install with: pip install -e ../fanuc_package
+-e ../fanuc_package
+
 # Testing
 pytest>=7.0.0
 pytest-cov>=4.0.0

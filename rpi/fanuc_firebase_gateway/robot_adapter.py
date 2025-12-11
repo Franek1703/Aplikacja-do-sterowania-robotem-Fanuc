@@ -161,15 +161,16 @@ class RealRobotAdapter:
             ee_do_num: End effector digital output number
         """
         # Import here to avoid dependency in simulation mode
-        import sys
-        from pathlib import Path
-        
-        # Add fanuc_package to path if needed
-        fanuc_package_path = Path(__file__).parent.parent / "fanuc_package" / "src"
-        if str(fanuc_package_path) not in sys.path:
-            sys.path.insert(0, str(fanuc_package_path))
-        
-        from robot.robot import Robot
+        try:
+            from robot.robot import Robot
+        except ImportError:
+            # Fallback: add path and try again
+            import sys
+            from pathlib import Path
+            fanuc_package_src = Path(__file__).parent.parent / "fanuc_package" / "src"
+            if str(fanuc_package_src) not in sys.path:
+                sys.path.insert(0, str(fanuc_package_src))
+            from robot.robot import Robot
         
         self.robot = Robot(
             robot_model="Fanuc",

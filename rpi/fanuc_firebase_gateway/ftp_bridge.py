@@ -39,11 +39,14 @@ class FTPBridge:
         
         if not simulation:
             # Import real FTP client
-            fanuc_package_path = Path(__file__).parent.parent / "fanuc_package" / "src"
-            if str(fanuc_package_path) not in sys.path:
-                sys.path.insert(0, str(fanuc_package_path))
-            
-            from robot.ftp import RobotFTP, RobotFTPError
+            try:
+                from robot.ftp import RobotFTP, RobotFTPError
+            except ImportError:
+                # Fallback: add path and try again
+                fanuc_package_src = Path(__file__).parent.parent / "fanuc_package" / "src"
+                if str(fanuc_package_src) not in sys.path:
+                    sys.path.insert(0, str(fanuc_package_src))
+                from robot.ftp import RobotFTP, RobotFTPError
             
             self.ftp = RobotFTP(host=host, user=user, password=password)
             self.FTPError = RobotFTPError
