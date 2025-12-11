@@ -18,6 +18,7 @@ try:
     from .dispatcher import CommandDispatcher
     from .status_publisher import StatusPublisher
     from .command_listener import CommandListener
+    from .parameter_manager import ParameterManager
 except ImportError:
     from firebase_client import get_firestore_client, get_rtdb_root
     from robot_adapter import RealRobotAdapter, SimulatedRobotAdapter, RobotInterface
@@ -25,6 +26,7 @@ except ImportError:
     from dispatcher import CommandDispatcher
     from status_publisher import StatusPublisher
     from command_listener import CommandListener
+    from parameter_manager import ParameterManager
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +83,7 @@ class RobotSession:
         # Components
         self.robot: Optional[RobotInterface] = None
         self.ftp_bridge: Optional[FTPBridge] = None
+        self.parameter_manager: Optional[ParameterManager] = None
         self.dispatcher: Optional[CommandDispatcher] = None
         self.status_publisher: Optional[StatusPublisher] = None
         self.command_listener: Optional[CommandListener] = None
@@ -121,10 +124,21 @@ class RobotSession:
                 simulation=self.robot_config.simulation,
             )
             
+            # Create parameter manager
+            self.parameter_manager = ParameterManager(
+                device_id=self.device_id,
+                robot_id=self.robot_config.robot_id
+            )
+            
+            # Load parameter definitions and initialize RTDB
+            self.parameter_manager.load_definitions()
+            self.parameter_manager.initialize_rtdb_parameters()
+            
             # Create dispatcher
             self.dispatcher = CommandDispatcher(
                 robot=self.robot,
                 ftp_bridge=self.ftp_bridge,
+                parameter_manager=self.parameter_manager,
             )
             
             # Get RTDB root

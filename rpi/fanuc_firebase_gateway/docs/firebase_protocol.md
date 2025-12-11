@@ -105,6 +105,28 @@ Root structure:
         "toolNumber": 1,
         "coordSystem": "WORLD",
         "activeProgram": "MAIN001"
+      },
+      "parameters": {
+        "1": {
+          "value": "",
+          "updatedAt": 1732023120,
+          "updatedBy": "system"
+        },
+        "2": {
+          "value": 100,
+          "updatedAt": 1732023115,
+          "updatedBy": "uid123"
+        },
+        "3": {
+          "value": true,
+          "updatedAt": 1732023100,
+          "updatedBy": "system"
+        },
+        "4": {
+          "value": "192.168.1.100",
+          "updatedAt": 1732023090,
+          "updatedBy": "system"
+        }
       }
     }
   }
@@ -256,6 +278,55 @@ Result example:
 }
 getRobotInfo
 (e.g., controller info, software version)
+
+5.8 Robot Parameters
+Parameters are stored in two places:
+* Firestore: /robots/{robotId}/parameters/{parameterId} - definitions/templates
+* RTDB: /devices/{deviceId}/robots/{robotId}/parameters - live values
+
+Parameter Definition (Firestore):
+{
+  "id": "1",
+  "name": "FTP Password",
+  "defaultValue": "",
+  "type": "string",           // string | number | boolean
+  "unit": "%",                 // optional
+  "category": "Network",       // Network | Motion | System
+  "isLocked": false,
+  "description": "FTP access password for robot file system",
+  "minValue": 0,              // optional, for number type
+  "maxValue": 100             // optional, for number type
+}
+
+Parameter Value (RTDB):
+{
+  "value": "",
+  "updatedAt": 1732023120,
+  "updatedBy": "uid123"
+}
+
+updateParameter
+{
+  "type": "updateParameter",
+  "payload": {
+    "parameterId": "2",
+    "value": 75
+  }
+}
+
+getParameter
+{
+  "type": "getParameter",
+  "payload": {
+    "parameterId": "2"
+  }
+}
+
+getAllParameters
+{
+  "type": "getAllParameters"
+}
+Result: Returns all parameter values from RTDB
 
 6. FTP Command Layer
 FTP requests live under:

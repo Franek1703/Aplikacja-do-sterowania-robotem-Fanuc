@@ -13,10 +13,12 @@ try:
     from .models import Command, FTPCommand, CommandResult
     from .robot_adapter import RobotInterface
     from .ftp_bridge import FTPBridge
+    from .parameter_manager import ParameterManager
 except ImportError:
     from models import Command, FTPCommand, CommandResult
     from robot_adapter import RobotInterface
     from ftp_bridge import FTPBridge
+    from parameter_manager import ParameterManager
 
 logger = logging.getLogger(__name__)
 
@@ -27,15 +29,17 @@ class CommandDispatcher:
     Maps command types to handler methods as defined in firebase_protocol.md.
     """
     
-    def __init__(self, robot: RobotInterface, ftp_bridge: FTPBridge):
+    def __init__(self, robot: RobotInterface, ftp_bridge: FTPBridge, parameter_manager: ParameterManager):
         """Initialize command dispatcher.
         
         Args:
             robot: Robot interface implementation
             ftp_bridge: FTP bridge for file operations
+            parameter_manager: Parameter manager for robot parameters
         """
         self.robot = robot
         self.ftp_bridge = ftp_bridge
+        self.parameter_manager = parameter_manager
         
         # Map command types to handler methods
         self.command_handlers = {
@@ -71,6 +75,11 @@ class CommandDispatcher:
             # Diagnostics (section 5.7)
             "getPowerConsumption": self._handle_get_power_consumption,
             "getRobotInfo": self._handle_get_robot_info,
+            
+            # Parameters (section 5.8)
+            "updateParameter": self._handle_update_parameter,
+            "getParameter": self._handle_get_parameter,
+            "getAllParameters": self._handle_get_all_parameters,
         }
         
         logger.info(f"Initialized CommandDispatcher with {len(self.command_handlers)} handlers")
@@ -401,4 +410,126 @@ class CommandDispatcher:
             message="getRobotInfo not yet implemented",
             completedAt=int(time.time())
         )
+    
+    def _handle_update_parameter(self, payload: dict) -> CommandResult:
+        """Handle updateParameter command (section 5.8)."""
+        try:
+            parameter_id = payload["parameterId"]
+            value = payload["value"]
+            updated_by = payload.get("updatedBy", "system")
+            
+            logger.info(f"Updating parameter {parameter_id} to {value}")
+            
+            # Validate parameter
+            is_valid, error_msg = self.parameter_manager.validate_parameter(parameter_id, value)
+            if not is_valid:
+                return CommandResult(
+                    code=1,
+                    message=f"Parameter validation failed: {error_msg}",
+                    completedAt=int(time.time())
+                )
+            
+            # Update parameter
+            success = self.parameter_manager.update_parameter(parameter_id, value, updated_by)
+            
+            if success:
+                return CommandResult(
+                    code=0,
+                    message=f"Parameter {parameter_id} updated successfully",
+                    completedAt=int(time.time()),
+                    data={"parameterId": parameter_id, "value": value}
+                )
+            else:
+                return CommandResult(
+                    code=1,
+                    message=f"Failed to update parameter {parameter_id}",
+                    completedAt=int(time.time())
+                )
+                
+        except KeyError as e:
+            return CommandResult(
+                code=1,
+                message=f"Missing required field: {e}",
+                completedAt=int(time.time())
+            )
+        except Exception as e:
+            logger.error(f"Error updating parameter: {e}", exc_info=True)
+            return CommandResult(
+                code=1,
+                message=f"Error updating parameter: {str(e)}",
+                completedAt=int(time.time())
+            )
+    
+    def _handle_get_parameter(self, payload: dict) -> CommandResult:
+        """Handle getParameter command (section 5.8)."""
+        try:
+            parameter_id = payload["parameterId"]
+            
+            logger.info(f"Getting parameter {parameter_id}")
+            
+            param_value = self.parameter_manager.get_parameter(parameter_id)
+            
+            if param_value:
+                return CommandResult(
+                    code=0,
+                    message=f"Parameter {parameter_id} retrieved",
+                    completedAt=int(time.time()),
+                    data={
+                        "parameterId": parameter_id,
+                        "value": param_value.value,
+                        "updatedAt": param_value.updatedAt,
+                        "updatedBy": param_value.updatedBy
+                    }
+                )
+            else:
+                return CommandResult(
+                    code=1,
+                    message=f"Parameter {parameter_id} not found",
+                    completedAt=int(time.time())
+                )
+                
+        except KeyError as e:
+            return CommandResult(
+                code=1,
+                message=f"Missing required field: {e}",
+                completedAt=int(time.time())
+            )
+        except Exception as e:
+            logger.error(f"Error getting parameter: {e}", exc_info=True)
+            return CommandResult(
+                code=1,
+                message=f"Error getting parameter: {str(e)}",
+                completedAt=int(time.time())
+            )
+    
+    def _handle_get_all_parameters(self, payload: dict) -> CommandResult:
+        """Handle getAllParameters command (section 5.8)."""
+        try:
+            logger.info("Getting all parameters")
+            
+            all_params = self.parameter_manager.get_all_parameters()
+            
+            # Convert to dict format for Firebase
+            params_data = {}
+            for param_id, param_value in all_params.items():
+                params_data[param_id] = {
+                    "value": param_value.value,
+                    "updatedAt": param_value.updatedAt,
+                    "updatedBy": param_value.updatedBy
+                }
+            
+            return CommandResult(
+                code=0,
+                message=f"Retrieved {len(all_params)} parameters",
+                completedAt=int(time.time()),
+                data={"parameters": params_data}
+            )
+                
+        except Exception as e:
+            logger.error(f"Error getting all parameters: {e}", exc_info=True)
+            return CommandResult(
+                code=1,
+                message=f"Error getting all parameters: {str(e)}",
+                completedAt=int(time.time())
+            )
 

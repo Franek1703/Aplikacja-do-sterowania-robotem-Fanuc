@@ -20,136 +20,12 @@ Create a subcollection under each robot document:
 
 For each robot, create the following parameter documents:
 
-#### Motion Category
+#### Network Category
 
-**Parameter ID: `1` - Override Speed**
+**Parameter ID: `1` - FTP Password**
 ```json
 {
   "id": "1",
-  "name": "Override Speed",
-  "defaultValue": 100,
-  "type": "number",
-  "unit": "%",
-  "category": "Motion",
-  "isLocked": false,
-  "description": "Global speed override percentage",
-  "minValue": 0,
-  "maxValue": 200
-}
-```
-
-**Parameter ID: `2` - Joint Speed Limit**
-```json
-{
-  "id": "2",
-  "name": "Joint Speed Limit",
-  "defaultValue": 250,
-  "type": "number",
-  "unit": "deg/sec",
-  "category": "Motion",
-  "isLocked": false,
-  "description": "Maximum angular velocity for joints",
-  "minValue": 0,
-  "maxValue": 1000
-}
-```
-
-#### Safety Category
-
-**Parameter ID: `3` - Collision Detection**
-```json
-{
-  "id": "3",
-  "name": "Collision Detection",
-  "defaultValue": true,
-  "type": "boolean",
-  "category": "Safety",
-  "isLocked": true,
-  "description": "Enable/disable collision detection system"
-}
-```
-
-**Parameter ID: `4` - Emergency Stop Enabled**
-```json
-{
-  "id": "4",
-  "name": "Emergency Stop Enabled",
-  "defaultValue": true,
-  "type": "boolean",
-  "category": "Safety",
-  "isLocked": true,
-  "description": "Emergency stop circuit status"
-}
-```
-
-#### Configuration Category
-
-**Parameter ID: `5` - Payload Weight**
-```json
-{
-  "id": "5",
-  "name": "Payload Weight",
-  "defaultValue": 25.5,
-  "type": "number",
-  "unit": "kg",
-  "category": "Configuration",
-  "isLocked": false,
-  "description": "Current tool and payload weight",
-  "minValue": 0,
-  "maxValue": 200
-}
-```
-
-**Parameter ID: `6` - TCP Offset X**
-```json
-{
-  "id": "6",
-  "name": "TCP Offset X",
-  "defaultValue": 0.0,
-  "type": "number",
-  "unit": "mm",
-  "category": "Configuration",
-  "isLocked": false,
-  "description": "Tool center point X offset",
-  "minValue": -1000,
-  "maxValue": 1000
-}
-```
-
-#### System Category
-
-**Parameter ID: `7` - Auto Backup**
-```json
-{
-  "id": "7",
-  "name": "Auto Backup",
-  "defaultValue": true,
-  "type": "boolean",
-  "category": "System",
-  "isLocked": false,
-  "description": "Automatic backup of programs"
-}
-```
-
-#### Network Category
-
-**Parameter ID: `8` - Controller IP**
-```json
-{
-  "id": "8",
-  "name": "Controller IP",
-  "defaultValue": "192.168.1.100",
-  "type": "string",
-  "category": "Network",
-  "isLocked": false,
-  "description": "Controller network IP address"
-}
-```
-
-**Parameter ID: `9` - FTP Password**
-```json
-{
-  "id": "9",
   "name": "FTP Password",
   "defaultValue": "",
   "type": "string",
@@ -159,7 +35,49 @@ For each robot, create the following parameter documents:
 }
 ```
 
-**Note:** FTP Password is stored in Firestore at `/robots/{robotId}/ftpPassword`, not in RTDB parameters. When updated, it modifies the robot document directly.
+**Parameter ID: `4` - Controller IP**
+```json
+{
+  "id": "4",
+  "name": "Controller IP",
+  "defaultValue": "192.168.1.100",
+  "type": "string",
+  "category": "Network",
+  "isLocked": false,
+  "description": "Controller network IP address"
+}
+```
+
+#### Motion Category
+
+**Parameter ID: `2` - Override Speed**
+```json
+{
+  "id": "2",
+  "name": "Override Speed",
+  "defaultValue": 100,
+  "type": "number",
+  "unit": "%",
+  "category": "Motion",
+  "isLocked": false,
+  "description": "Global speed override percentage"
+}
+```
+
+#### System Category
+
+**Parameter ID: `3` - Auto Backup**
+```json
+{
+  "id": "3",
+  "name": "Auto Backup",
+  "defaultValue": true,
+  "type": "boolean",
+  "category": "System",
+  "isLocked": false,
+  "description": "Automatic backup of programs"
+}
+```
 
 ### How to Add in Firebase Console
 
@@ -168,7 +86,7 @@ For each robot, create the following parameter documents:
 3. Click **Start collection** (if parameters subcollection doesn't exist)
 4. For each parameter:
    - Click **Add document**
-   - Use the parameter ID as the document ID (e.g., `1`, `2`, `3`, etc.)
+   - Use the parameter ID as the document ID (e.g., `1`, `2`, `3`, `4`)
    - Add all fields from the JSON above
 
 ### Alternative: Use Firebase Admin SDK or Script
@@ -189,12 +107,12 @@ The gateway should initialize these values when a robot is first connected. You 
 {
   "parameters": {
     "1": {
-      "value": 100,
+      "value": "",
       "updatedAt": 1732023120,
       "updatedBy": "system"
     },
     "2": {
-      "value": 250,
+      "value": 100,
       "updatedAt": 1732023115,
       "updatedBy": "system"
     },
@@ -204,35 +122,12 @@ The gateway should initialize these values when a robot is first connected. You 
       "updatedBy": "system"
     },
     "4": {
-      "value": true,
-      "updatedAt": 1732023100,
-      "updatedBy": "system"
-    },
-    "5": {
-      "value": 25.5,
-      "updatedAt": 1732023090,
-      "updatedBy": "system"
-    },
-    "6": {
-      "value": 0.0,
-      "updatedAt": 1732023080,
-      "updatedBy": "system"
-    },
-    "7": {
-      "value": true,
-      "updatedAt": 1732023070,
-      "updatedBy": "system"
-    },
-    "8": {
       "value": "192.168.1.100",
-      "updatedAt": 1732023060,
+      "updatedAt": 1732023090,
       "updatedBy": "system"
     }
   }
 }
-```
-
-**Note:** Parameter ID `9` (FTP Password) is stored in Firestore at `/robots/{robotId}/ftpPassword`, not in RTDB. It should not be included in the RTDB parameters node.
 ```
 
 ### How to Add in Firebase Console

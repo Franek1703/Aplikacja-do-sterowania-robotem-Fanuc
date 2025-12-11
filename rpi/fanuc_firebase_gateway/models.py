@@ -259,3 +259,37 @@ class FileInfo:
         """Convert to dictionary for Firebase."""
         return asdict(self)
 
+
+@dataclass
+class ParameterDefinition:
+    """Parameter definition from Firestore."""
+    id: str
+    name: str
+    defaultValue: Any
+    type: Literal["string", "number", "boolean"]
+    category: Literal["Network", "Motion", "System"]
+    isLocked: bool
+    description: str
+    unit: Optional[str] = None
+    minValue: Optional[float] = None
+    maxValue: Optional[float] = None
+
+
+@dataclass
+class ParameterValue:
+    """Parameter value in RTDB."""
+    value: Any
+    updatedAt: int
+    updatedBy: str
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for Firebase."""
+        return asdict(self)
+
+
+@dataclass
+class ParameterUpdate:
+    """Parameter update command payload."""
+    parameterId: str
+    value: Any
+
