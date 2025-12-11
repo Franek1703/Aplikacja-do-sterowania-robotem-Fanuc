@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1052600817177",
+    "firebase_url": "https://fanuccontrol-b5699-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "fanuccontrol-b5699",
+    "storage_bucket": "fanuccontrol-b5699.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1052600817177:android:d80518ffcdf7aa15073c88",
+        "android_client_info": {
+          "package_name": "com.example.fanuc_control"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBZU4O3wYzl0aA6gHyrBKOtrGfBRzX0618"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
