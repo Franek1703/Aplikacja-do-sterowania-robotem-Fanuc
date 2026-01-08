@@ -239,21 +239,25 @@ class Robot:
         Args:
             value (bool): True or False
         """
-        if (self.ee_DO_type is not None) and (self.ee_DO_num is not None):
-            cmd = ""
-            if self.ee_DO_type == "RDO":
-                cmd = "setrdo"
-                port = str(self.ee_DO_num)
-            elif self.ee_DO_type == "DO":
-                cmd = "setdout"
-                port = str(self.ee_DO_num).zfill(5)
-            else:
-                raise ValueError("Wrong DO type!")
+        # if (self.ee_DO_type is not None) and (self.ee_DO_num is not None):
+        #     cmd = ""
+        #     if self.ee_DO_type == "RDO":
+        #         cmd = "setrdo"
+        #         port = str(self.ee_DO_num)
+        #     elif self.ee_DO_type == "DO":
+        #         cmd = "setdout"
+        #         port = str(self.ee_DO_num).zfill(5)
+        #     else:
+        #         raise ValueError("Wrong DO type!")
 
-            cmd = cmd + f":{port}:{str(value).lower()}"
-            return self.send_cmd(cmd, continue_on_error=continue_on_error)
-        else:
-            raise ValueError("DO type or number is None!")
+        #     cmd = cmd + f":{port}:{str(value).lower()}"
+        #     return self.send_cmd(cmd, continue_on_error=continue_on_error)
+        # else:
+        #     raise ValueError("DO type or number is None!")
+
+        # Run TP program to control gripper OTWORZ/ ZAMKNIJ depends of value
+        prog_name = "OTWORZ" if value else "ZAMKNIJ"
+        return self.call_prog(prog_name)
 
     def get_rdo(self, rdo_num: int) -> int:
         """Get RDO value.
