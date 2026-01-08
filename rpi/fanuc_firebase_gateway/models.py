@@ -293,3 +293,24 @@ class ParameterUpdate:
     parameterId: str
     value: Any
 
+
+@dataclass
+class Alarm:
+    """Alarm data model for Firebase.
+    
+    As defined in firebase_protocol.md section 7.
+    """
+    alarmId: str  # Unique alarm identifier (alarm_number + alarm_code)
+    alarmCode: str  # e.g., "SRVO-003"
+    message: str
+    severity: str  # e.g., "SERVO", "WARN", "STOP.L", "ABORT.L"
+    timestamp: int  # Unix timestamp
+    causeMessage: Optional[str] = None
+    actionRequired: Optional[str] = None
+    flags: Optional[str] = None
+    isActive: bool = True  # True for active alarms, False for historical
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for Firebase."""
+        return {k: v for k, v in asdict(self).items() if v is not None}
+

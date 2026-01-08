@@ -17,6 +17,7 @@ try:
     from .ftp_bridge import FTPBridge
     from .dispatcher import CommandDispatcher
     from .status_publisher import StatusPublisher
+    from .alarm_publisher import AlarmPublisher
     from .command_listener import CommandListener
     from .parameter_manager import ParameterManager
 except ImportError:
@@ -25,6 +26,7 @@ except ImportError:
     from ftp_bridge import FTPBridge
     from dispatcher import CommandDispatcher
     from status_publisher import StatusPublisher
+    from alarm_publisher import AlarmPublisher
     from command_listener import CommandListener
     from parameter_manager import ParameterManager
 
@@ -86,6 +88,7 @@ class RobotSession:
         self.parameter_manager: Optional[ParameterManager] = None
         self.dispatcher: Optional[CommandDispatcher] = None
         self.status_publisher: Optional[StatusPublisher] = None
+        self.alarm_publisher: Optional[AlarmPublisher] = None
         self.command_listener: Optional[CommandListener] = None
         
         logger.info(f"Initialized RobotSession for {robot_config.robot_id}")
@@ -141,8 +144,9 @@ class RobotSession:
                 parameter_manager=self.parameter_manager,
             )
             
-            # Get RTDB root
+            # Get RTDB root and Firestore client
             rtdb_root = get_rtdb_root()
+            firestore_client = get_firestore_client()
             
             # Create and start status publisher
             self.status_publisher = StatusPublisher(
@@ -153,6 +157,17 @@ class RobotSession:
                 interval=self.status_interval,
             )
             self.status_publisher.start()
+            
+            # Create and start alarm publisher
+            self.alarm_publisher = AlarmPublisher(
+                device_id=self.device_id,
+                robot_id=self.robot_config.robot_id,
+                ftp_bridge=self.ftp_bridge,
+                rtdb_root=rtdb_root,
+                firestore_client=firestore_client,
+                interval=5.0,  # Check alarms every 5 seconds
+            )
+            self.alarm_publisher.start()
             
             # Create and start command listener
             self.command_listener = CommandListener(
@@ -180,6 +195,13 @@ class RobotSession:
                 self.command_listener.stop()
             except Exception as e:
                 logger.error(f"Error stopping command listener: {e}")
+        
+        # Stop alarm publisher
+        if self.alarm_publisher:
+            try:
+                self.alarm_publisher.stop()
+            except Exception as e:
+                logger.error(f"Error stopping alarm publisher: {e}")
         
         # Stop status publisher
         if self.status_publisher:

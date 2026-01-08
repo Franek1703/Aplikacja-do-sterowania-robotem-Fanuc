@@ -267,6 +267,45 @@ class FTPBridge:
             )
         finally:
             self.ftp.disconnect()
+    
+    def read_alarm_logs(self, kind=None, device: str = "MD:"):
+        """Read alarm logs from robot.
+        
+        Args:
+            kind: AlarmLogType enum value (e.g., AlarmLogType.ACT, AlarmLogType.ALL)
+            device: Device to read from (default: "MD:")
+            
+        Returns:
+            List of Alarm objects from robot.alarm_parser
+        """
+        if self.simulation:
+            logger.warning("read_alarm_logs not supported in simulation mode")
+            return []
+        
+        if not hasattr(self.ftp, 'read_alarm_logs'):
+            logger.warning("FTP client does not support read_alarm_logs")
+            return []
+        
+        try:
+            self.ftp.connect()
+            try:
+                if kind is None:
+                    # Import default
+                    import sys
+                    from pathlib import Path
+                    fanuc_package_src = Path(__file__).parent.parent / "fanuc_package" / "src"
+                    if str(fanuc_package_src) not in sys.path:
+                        sys.path.insert(0, str(fanuc_package_src))
+                    from robot.ftp import AlarmLogType
+                    kind = AlarmLogType.ALL
+                
+                alarms = self.ftp.read_alarm_logs(kind=kind, device=device)
+                return alarms
+            finally:
+                self.ftp.disconnect()
+        except Exception as e:
+            logger.error(f"Error reading alarm logs: {e}", exc_info=True)
+            return []
 
 
 class SimulatedFTP:
